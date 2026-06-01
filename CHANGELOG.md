@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added a man-page-style Markdown manual at `docs/MANUAL.md` covering commands, options, config, files, safety, exit codes, and examples.
 - Added configurable external command timeout via `--command-timeout <seconds>` and `-t <seconds>`.
 - Created the initial Bash CLI with `backup`, `restore`, `list`, `doctor`, `config generate`, `gist pull`, and `gist push`.
 - Added YAML inventory/config support with `yq`.

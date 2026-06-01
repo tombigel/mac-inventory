@@ -122,4 +122,4 @@ bats test
 
 The tests use mocked package-manager commands so they can run without installing or changing real applications.
 
-See [docs/PLAN.md](docs/PLAN.md) for the full implementation plan and [docs/PROMPT.md](docs/PROMPT.md) for the prompt history.
+See [docs/MANUAL.md](docs/MANUAL.md) for the full command reference, [docs/PLAN.md](docs/PLAN.md) for the implementation plan, and [docs/PROMPT.md](docs/PROMPT.md) for the prompt history.
