@@ -44,6 +44,7 @@ mi_args_init() {
   MI_GITHUB_LOGIN="gh"
   MI_GITHUB_TOKEN=""
   MI_GITHUB_TOKEN_ENV="GITHUB_TOKEN"
+  MI_COMMAND_TIMEOUT="30"
   MI_SECTIONS=""
   MI_DOTFILES_PATHS=""
 }
@@ -106,7 +107,7 @@ mi_set_command_token() {
 
 mi_long_option_needs_value() {
   case "$1" in
-    --config|--inventory|--apps|--brew|--npm|--pip|--pipx|--oh-my-zsh|--xcode|--dotfiles|--manual-apps|--interactive|--check-manual-brew|--manual-brew-match|--versions|--dotfiles-path|--output|--skip-existing|--overwrite|--use-versions|--install-missing-tools|--login-check|--section|--format|--gist-id|--gist-create|--gist-visibility|--gist-file|--gist-config-file|--github-login|--github-token|--github-token-env)
+    --config|--inventory|--apps|--brew|--npm|--pip|--pipx|--oh-my-zsh|--xcode|--dotfiles|--manual-apps|--interactive|--check-manual-brew|--manual-brew-match|--versions|--dotfiles-path|--output|--skip-existing|--overwrite|--use-versions|--install-missing-tools|--login-check|--section|--format|--gist-id|--gist-create|--gist-visibility|--gist-file|--gist-config-file|--github-login|--github-token|--github-token-env|--command-timeout)
       return 0
       ;;
     *)
@@ -179,13 +180,19 @@ mi_set_long_option() {
       ;;
     --github-token) MI_GITHUB_TOKEN="$value" ;;
     --github-token-env) MI_GITHUB_TOKEN_ENV="$value" ;;
+    --command-timeout)
+      case "$value" in
+        ''|*[!0-9]*) mi_error "--command-timeout expects seconds"; return 2 ;;
+        *) MI_COMMAND_TIMEOUT="$value" ;;
+      esac
+      ;;
     *) mi_error "unknown option: $name"; return 2 ;;
   esac
 }
 
 mi_short_option_needs_value() {
   case "$1" in
-    c|i|A|B|N|P|Q|O|X|D|M|I|C|V|F|o|s|w|U|T|L|S|f|g)
+    c|i|A|B|N|P|Q|O|X|D|M|I|C|V|F|o|s|w|U|T|L|S|f|g|t)
       return 0
       ;;
     *)
@@ -229,6 +236,7 @@ mi_short_to_long() {
     e) printf '%s' --installed-only ;;
     m) printf '%s' --missing-only ;;
     g) printf '%s' --gist-id ;;
+    t) printf '%s' --command-timeout ;;
     *) return 1 ;;
   esac
 }

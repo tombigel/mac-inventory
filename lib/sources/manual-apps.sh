@@ -11,7 +11,9 @@ manual_apps_backup() {
       selected=""
       if [ "$MI_CHECK_MANUAL_BREW" = "true" ] && mi_has brew; then
         query="$(printf '%s\n' "$name" | sed 's/\.app$//' | tr '[:upper:] ' '[:lower:]-')"
-        cask="$(brew search --casks "$query" 2>/dev/null | head -n 1)"
+        if mi_brew_capture cask_matches search --casks "$query"; then
+          cask="$(printf '%s\n' "$cask_matches" | head -n 1)"
+        fi
         if [ -n "$cask" ]; then
           case "$MI_MANUAL_BREW_MATCH" in
             all) selected="$cask" ;;

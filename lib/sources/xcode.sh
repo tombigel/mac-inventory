@@ -69,4 +69,3 @@ xcode_doctor() {
     xcodebuild -checkFirstLaunchStatus >/dev/null 2>&1 && mi_info "xcode: first launch complete" || mi_warn "xcode: first launch incomplete or unavailable"
   fi
 }
-

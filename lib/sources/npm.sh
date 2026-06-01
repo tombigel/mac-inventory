@@ -6,12 +6,13 @@ npm_backup() {
   if ! mi_has npm; then
     return 0
   fi
-  npm list -g --depth=0 --parseable 2>/dev/null | tail -n +2 | while IFS= read -r path; do
+  mi_npm_capture npm_globals list -g --depth=0 --parseable || return 0
+  printf '%s\n' "$npm_globals" | tail -n +2 | while IFS= read -r path; do
     name="$(basename "$path")"
     [ -n "$name" ] || continue
     version=""
     if [ "$MI_RECORD_VERSIONS" = "true" ]; then
-      version="$(npm view "$name" version 2>/dev/null || true)"
+      mi_npm_capture npm_version view "$name" version && version="$npm_version"
     fi
     printf '    - name: %s\n' "$(mi_yaml_scalar "$name")"
     printf '      version: %s\n' "$(mi_yaml_scalar "$version")"
@@ -30,4 +31,3 @@ npm_restore() {
     fi
   done
 }
-

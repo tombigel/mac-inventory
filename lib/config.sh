@@ -14,9 +14,21 @@ mi_config_apply() {
     mi_config_bool defaults.interactive MI_INTERACTIVE
     mi_config_bool defaults.skip_existing MI_SKIP_EXISTING
     mi_config_bool defaults.overwrite MI_OVERWRITE
+    mi_config_number defaults.command_timeout MI_COMMAND_TIMEOUT
   elif [ -f "$MI_CONFIG" ]; then
     mi_warn "config exists but yq is not installed; using CLI/default values"
   fi
+}
+
+mi_config_number() {
+  key="$1"
+  var="$2"
+  value="$(yq e ".$key // \"\"" "$MI_CONFIG" 2>/dev/null)"
+  case "$value" in
+    ''|null) return 0 ;;
+    *[!0-9]*) mi_warn "config $key must be a number; ignoring" ;;
+    *) printf -v "$var" '%s' "$value" ;;
+  esac
 }
 
 mi_config_bool() {
@@ -54,6 +66,7 @@ defaults:
   restore_versions: false
   skip_existing: true
   overwrite: false
+  command_timeout: 30
 
 sources:
   apps: true
@@ -90,4 +103,3 @@ gist:
 EOF
   mi_info "wrote $output"
 }
-

@@ -89,7 +89,7 @@ mi_run() {
     return 0
   fi
   mi_verbose "run: $*"
-  "$@"
+  mi_command_run "$*:" "$@"
 }
 
 mi_install_brew_tool_if_allowed() {
@@ -99,8 +99,135 @@ mi_install_brew_tool_if_allowed() {
   [ "${MI_INSTALL_MISSING_TOOLS:-true}" = "true" ] || return 1
   mi_has brew || return 1
   mi_prompt_yes_no "Install missing tool $tool with Homebrew?" "yes" || return 1
-  mi_run brew install "$formula" || return 1
+  mi_brew_run install "$formula" || return 1
   mi_has "$tool"
+}
+
+mi_command_timeout() {
+  printf '%s\n' "${MI_COMMAND_TIMEOUT:-30}"
+}
+
+mi_command_run() {
+  label="$1"
+  shift
+  out="$(mktemp "${TMPDIR:-/tmp}/mac-inventory-command-out.XXXXXX")" || return 1
+  err="$(mktemp "${TMPDIR:-/tmp}/mac-inventory-command-err.XXXXXX")" || { rm -f "$out"; return 1; }
+  mi_command_capture_files "$label" "$out" "$err" "$@"
+  rc=$?
+  cat "$out"
+  cat "$err" >&2
+  rm -f "$out" "$err"
+  return "$rc"
+}
+
+mi_command_capture() {
+  __var="$1"
+  label="$2"
+  shift 2
+  out="$(mktemp "${TMPDIR:-/tmp}/mac-inventory-command-out.XXXXXX")" || return 1
+  err="$(mktemp "${TMPDIR:-/tmp}/mac-inventory-command-err.XXXXXX")" || { rm -f "$out"; return 1; }
+  mi_command_capture_files "$label" "$out" "$err" "$@"
+  rc=$?
+  if [ "$rc" -eq 0 ]; then
+    value="$(cat "$out")"
+    printf -v "$__var" '%s' "$value"
+  else
+    detail="$(tr '\n' ' ' <"$err" | sed 's/[[:space:]][[:space:]]*/ /g')"
+    [ -n "$detail" ] && mi_verbose "$label failed: $detail"
+  fi
+  rm -f "$out" "$err"
+  return "$rc"
+}
+
+mi_command_capture_files() {
+  label="$1"
+  out="$2"
+  err="$3"
+  shift 3
+  timeout_seconds="$(mi_command_timeout)"
+
+  if [ "$timeout_seconds" -le 0 ] 2>/dev/null; then
+    "$@" >"$out" 2>"$err"
+    return $?
+  fi
+
+  if mi_has perl; then
+    perl -e '
+      my $timeout = shift @ARGV;
+      my $pid = fork();
+      die "fork failed\n" unless defined $pid;
+      if ($pid == 0) { exec @ARGV; die "exec failed: $!\n"; }
+      local $SIG{ALRM} = sub {
+        kill "TERM", $pid;
+        sleep 1;
+        kill "KILL", $pid;
+        exit 124;
+      };
+      alarm $timeout;
+      waitpid($pid, 0);
+      my $status = $?;
+      alarm 0;
+      exit($status & 127 ? 128 + ($status & 127) : $status >> 8);
+    ' "$timeout_seconds" "$@" >"$out" 2>"$err"
+    rc=$?
+    case "$rc" in
+      124)
+        mi_warn "$label timed out after ${timeout_seconds}s"
+        return 124
+        ;;
+      *)
+        return "$rc"
+        ;;
+    esac
+  fi
+
+  "$@" >"$out" 2>"$err" &
+  cmd_pid=$!
+  (
+    sleep "$timeout_seconds"
+    kill -TERM "$cmd_pid" 2>/dev/null || exit 0
+    sleep 1
+    kill -KILL "$cmd_pid" 2>/dev/null || true
+  ) &
+  watchdog_pid=$!
+
+  wait "$cmd_pid"
+  rc=$?
+  kill "$watchdog_pid" 2>/dev/null || true
+  wait "$watchdog_pid" 2>/dev/null || true
+
+  case "$rc" in
+    137|143)
+      mi_warn "$label timed out after ${timeout_seconds}s"
+      return 124
+      ;;
+    *)
+      return "$rc"
+      ;;
+  esac
+}
+
+mi_brew_capture() {
+  __var="$1"
+  shift
+  mi_command_capture "$__var" "brew $*" \
+    env HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_ANALYTICS=1 HOMEBREW_NO_INSTALL_CLEANUP=1 HOMEBREW_NO_ENV_HINTS=1 brew "$@"
+}
+
+mi_brew_run() {
+  mi_run env HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_ANALYTICS=1 HOMEBREW_NO_INSTALL_CLEANUP=1 HOMEBREW_NO_ENV_HINTS=1 brew "$@"
+}
+
+mi_mas_capture() {
+  __var="$1"
+  shift
+  mi_command_capture "$__var" "mas $*" mas "$@"
+}
+
+mi_npm_capture() {
+  __var="$1"
+  shift
+  mi_command_capture "$__var" "npm $*" npm "$@"
 }
 
 mi_yaml_scalar() {
@@ -160,6 +287,7 @@ Global options:
   -v, --verbose                       Verbose output
   -q, --quiet                         Quiet output
   -h, --help                          Show help
+  -t, --command-timeout <seconds>      Timeout for external commands
 
 Backup options:
   -u, --update

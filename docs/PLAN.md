@@ -48,6 +48,7 @@ Main options:
 - `--verbose`, `-v`
 - `--quiet`, `-q`
 - `--help`, `-h`
+- `--command-timeout`, `-t`
 
 Short-option behavior:
 
@@ -121,6 +122,7 @@ Safety rules:
 - Dotfile backup uses explicit allowlists only and scans for common secret patterns.
 - Dotfile restore is confined to `$HOME`.
 - `--yes` accepts safe install/upload prompts only.
+- External package-manager commands should avoid unrelated work where possible. Homebrew commands run with auto-update, analytics, cleanup, and env hints disabled for the invoked command. Commands that do not provide immediate-fail flags are wrapped with a configurable timeout.
 - Prefer `--github-token-env` or `gh` auth over `--github-token`.
 - Public repo preparation excludes copied dotfiles, inventories, Gist payloads, and secrets by default.
 
@@ -197,4 +199,3 @@ Use staged task commits:
 9. `docs: complete usage examples`
 
 After tests pass, create the public GitHub repo and push `main`.
-

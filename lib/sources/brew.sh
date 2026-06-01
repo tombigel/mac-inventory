@@ -4,18 +4,24 @@ brew_backup() {
   printf 'brew:\n'
   printf '  taps:\n'
   if mi_has brew; then
-    brew tap 2>/dev/null | while IFS= read -r tap; do
+    mi_brew_capture brew_taps tap || brew_taps=""
+    printf '%s\n' "$brew_taps" | while IFS= read -r tap; do
       [ -n "$tap" ] && printf '    - %s\n' "$(mi_yaml_scalar "$tap")"
     done
     printf '  formulae:\n'
-    brew leaves 2>/dev/null | while IFS= read -r name; do
+    mi_brew_capture brew_formulae leaves || brew_formulae=""
+    printf '%s\n' "$brew_formulae" | while IFS= read -r name; do
       [ -n "$name" ] || continue
-      version="$(brew list --versions "$name" 2>/dev/null | cut -d' ' -f2-)"
+      version=""
+      if [ "$MI_RECORD_VERSIONS" = "true" ] && mi_brew_capture formula_version list --versions "$name"; then
+        version="$(printf '%s\n' "$formula_version" | cut -d' ' -f2-)"
+      fi
       printf '    - name: %s\n' "$(mi_yaml_scalar "$name")"
       printf '      version: %s\n' "$(mi_yaml_scalar "$version")"
     done
     printf '  casks:\n'
-    brew list --cask --versions 2>/dev/null | while IFS= read -r line; do
+    mi_brew_capture brew_casks list --cask --versions || brew_casks=""
+    printf '%s\n' "$brew_casks" | while IFS= read -r line; do
       [ -n "$line" ] || continue
       name="$(printf '%s\n' "$line" | awk '{print $1}')"
       version="$(printf '%s\n' "$line" | cut -d' ' -f2-)"
@@ -37,27 +43,28 @@ brew_backup() {
 
 brew_restore() {
   mi_has brew || { mi_warn "brew missing; skipping Homebrew restore"; return 0; }
+  mi_brew_capture installed_taps tap || installed_taps=""
   yq e '.brew.taps[]?' "$MI_INVENTORY" 2>/dev/null | while IFS= read -r tap; do
     [ -n "$tap" ] && [ "$tap" != "null" ] || continue
     mi_validate_identifier "$tap" || { mi_warn "invalid tap: $tap"; continue; }
-    brew tap | grep -Fxq "$tap" || mi_run brew tap "$tap"
+    printf '%s\n' "$installed_taps" | grep -Fxq "$tap" || mi_brew_run tap "$tap"
   done
   yq e '.brew.formulae[]?.name' "$MI_INVENTORY" 2>/dev/null | while IFS= read -r name; do
     [ -n "$name" ] && [ "$name" != "null" ] || continue
     mi_validate_identifier "$name" || { mi_warn "invalid formula: $name"; continue; }
-    if brew list --formula "$name" >/dev/null 2>&1 && [ "$MI_SKIP_EXISTING" = "true" ]; then
+    if mi_brew_capture formula_check list --formula "$name" && [ "$MI_SKIP_EXISTING" = "true" ]; then
       mi_info "brew: $name already installed"
     else
-      mi_run brew install "$name"
+      mi_brew_run install "$name"
     fi
   done
   yq e '.brew.casks[]?.name' "$MI_INVENTORY" 2>/dev/null | while IFS= read -r name; do
     [ -n "$name" ] && [ "$name" != "null" ] || continue
     mi_validate_identifier "$name" || { mi_warn "invalid cask: $name"; continue; }
-    if brew list --cask "$name" >/dev/null 2>&1 && [ "$MI_SKIP_EXISTING" = "true" ]; then
+    if mi_brew_capture cask_check list --cask "$name" && [ "$MI_SKIP_EXISTING" = "true" ]; then
       mi_info "brew cask: $name already installed"
     else
-      mi_run brew install --cask "$name"
+      mi_brew_run install --cask "$name"
     fi
   done
 }

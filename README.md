@@ -102,6 +102,14 @@ mac-inventory backup -B=false
 - Remote installers are downloaded to temp files and executed only after policy allows it; the implementation does not use direct `curl | sh`.
 - Gist uploads run secret checks and default to secret Gists.
 - CLI token arguments are supported for automation, but `--github-token-env` or `gh auth login` is safer.
+- External package-manager commands are run with a configurable timeout:
+
+```bash
+mac-inventory backup --command-timeout 10
+mac-inventory restore -t 10 --dry-run
+```
+
+Homebrew calls are run with auto-update, analytics, install cleanup, and env hints disabled for the invoked command where possible.
 
 ## Development
 
