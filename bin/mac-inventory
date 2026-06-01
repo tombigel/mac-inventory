@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+
+set -u
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+PROJECT_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)"
+
+# shellcheck source=../lib/common.sh
+. "$PROJECT_DIR/lib/common.sh"
+# shellcheck source=../lib/args.sh
+. "$PROJECT_DIR/lib/args.sh"
+# shellcheck source=../lib/config.sh
+. "$PROJECT_DIR/lib/config.sh"
+# shellcheck source=../lib/safety.sh
+. "$PROJECT_DIR/lib/safety.sh"
+# shellcheck source=../lib/inventory.sh
+. "$PROJECT_DIR/lib/inventory.sh"
+# shellcheck source=../lib/gist.sh
+. "$PROJECT_DIR/lib/gist.sh"
+
+for source_file in "$PROJECT_DIR"/lib/sources/*.sh; do
+  # shellcheck source=/dev/null
+  . "$source_file"
+done
+
+main() {
+  mi_args_init
+
+  if [ "$#" -eq 0 ]; then
+    mi_show_help
+    return 0
+  fi
+
+  if ! mi_parse_args "$@"; then
+    return 2
+  fi
+
+  if [ "$MI_HELP" = "true" ] || [ "$MI_COMMAND" = "help" ]; then
+    mi_show_help
+    return 0
+  fi
+
+  mi_config_apply
+
+  if [ "$MI_GIST_PULL" = "true" ] && [ "$MI_COMMAND" != "gist" ]; then
+    mi_gist_pull
+  fi
+
+  case "$MI_COMMAND" in
+    backup)
+      mi_inventory_backup
+      ;;
+    restore)
+      mi_inventory_restore
+      ;;
+    list)
+      mi_inventory_list
+      ;;
+    doctor)
+      mi_doctor
+      ;;
+    config)
+      if [ "$MI_SUBCOMMAND" = "generate" ]; then
+        mi_config_generate
+      else
+        mi_error "unknown config command: ${MI_SUBCOMMAND:-<missing>}"
+        return 2
+      fi
+      ;;
+    gist)
+      case "$MI_SUBCOMMAND" in
+        pull) mi_gist_pull ;;
+        push) mi_gist_push ;;
+        *)
+          mi_error "unknown gist command: ${MI_SUBCOMMAND:-<missing>}"
+          return 2
+          ;;
+      esac
+      ;;
+    *)
+      mi_error "unknown command: $MI_COMMAND"
+      return 2
+      ;;
+  esac
+
+  if [ "$MI_GIST_PUSH" = "true" ] && [ "$MI_COMMAND" != "gist" ]; then
+    mi_gist_push
+  fi
+}
+
+main "$@"
+
