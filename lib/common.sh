@@ -92,6 +92,17 @@ mi_run() {
   "$@"
 }
 
+mi_install_brew_tool_if_allowed() {
+  tool="$1"
+  formula="${2:-$1}"
+  mi_has "$tool" && return 0
+  [ "${MI_INSTALL_MISSING_TOOLS:-true}" = "true" ] || return 1
+  mi_has brew || return 1
+  mi_prompt_yes_no "Install missing tool $tool with Homebrew?" "yes" || return 1
+  mi_run brew install "$formula" || return 1
+  mi_has "$tool"
+}
+
 mi_yaml_scalar() {
   value="$1"
   value=${value//\\/\\\\}
@@ -188,4 +199,3 @@ Short no-argument flags can be chained, e.g. -dyq.
 Value-taking short options must be standalone or last in a chain.
 EOF
 }
-

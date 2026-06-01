@@ -76,6 +76,7 @@ mi_require_yq() {
   if mi_has yq; then
     return 0
   fi
+  mi_install_brew_tool_if_allowed yq yq && return 0
   mi_error "yq v4 is required for this command"
   return 1
 }
@@ -105,4 +106,3 @@ mi_run_downloaded_script() {
   fi
   sh "$script" "$@"
 }
-

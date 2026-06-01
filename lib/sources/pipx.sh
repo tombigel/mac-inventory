@@ -16,7 +16,7 @@ pipx_backup() {
 }
 
 pipx_restore() {
-  mi_has pipx || { mi_warn "pipx missing; skipping pipx restore"; return 0; }
+  mi_has pipx || mi_install_brew_tool_if_allowed pipx pipx || { mi_warn "pipx missing; skipping pipx restore"; return 0; }
   yq e '.pipx.packages[]?.name' "$MI_INVENTORY" 2>/dev/null | while IFS= read -r name; do
     [ -n "$name" ] && [ "$name" != "null" ] || continue
     mi_validate_identifier "$name" || { mi_warn "invalid pipx package: $name"; continue; }
@@ -27,4 +27,3 @@ pipx_restore() {
     fi
   done
 }
-

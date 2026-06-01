@@ -18,7 +18,7 @@ appstore_backup() {
 }
 
 appstore_restore() {
-  mi_has mas || { mi_warn "mas missing; skipping App Store restore"; return 0; }
+  mi_has mas || mi_install_brew_tool_if_allowed mas mas || { mi_warn "mas missing; skipping App Store restore"; return 0; }
   yq e '.apps[]?.id' "$MI_INVENTORY" 2>/dev/null | while IFS= read -r id; do
     [ -n "$id" ] && [ "$id" != "null" ] || continue
     mi_validate_identifier "$id" || { mi_warn "invalid App Store id: $id"; continue; }
@@ -39,4 +39,3 @@ appstore_doctor() {
     fi
   fi
 }
-
