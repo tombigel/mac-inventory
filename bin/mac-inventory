@@ -49,19 +49,24 @@ main() {
   case "$MI_COMMAND" in
     backup)
       mi_inventory_backup
+      rc=$?
       ;;
     restore)
       mi_inventory_restore
+      rc=$?
       ;;
     list)
       mi_inventory_list
+      rc=$?
       ;;
     doctor)
       mi_doctor
+      rc=$?
       ;;
     config)
       if [ "$MI_SUBCOMMAND" = "generate" ]; then
         mi_config_generate
+        rc=$?
       else
         mi_error "unknown config command: ${MI_SUBCOMMAND:-<missing>}"
         return 2
@@ -69,8 +74,8 @@ main() {
       ;;
     gist)
       case "$MI_SUBCOMMAND" in
-        pull) mi_gist_pull ;;
-        push) mi_gist_push ;;
+        pull) mi_gist_pull; rc=$? ;;
+        push) mi_gist_push; rc=$? ;;
         *)
           mi_error "unknown gist command: ${MI_SUBCOMMAND:-<missing>}"
           return 2
@@ -83,10 +88,11 @@ main() {
       ;;
   esac
 
+  [ "${rc:-0}" -eq 0 ] || return "$rc"
+
   if [ "$MI_GIST_PUSH" = "true" ] && [ "$MI_COMMAND" != "gist" ]; then
     mi_gist_push
   fi
 }
 
 main "$@"
-
