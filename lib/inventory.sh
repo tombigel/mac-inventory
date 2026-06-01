@@ -16,7 +16,7 @@ mi_source_enabled() {
 }
 
 mi_section_selected() {
-  section="$1"
+  local section="$1"
   if [ -z "$MI_SECTIONS" ]; then
     return 0
   fi
@@ -24,6 +24,8 @@ mi_section_selected() {
 }
 
 mi_inventory_backup() {
+  local tmp tmp_dry
+
   if [ "$MI_DRY_RUN" = "true" ]; then
     mi_info "dry-run: would write inventory to $MI_INVENTORY"
     tmp_dry="$(mktemp "${TMPDIR:-/tmp}/mac-inventory-dry.XXXXXX")" || return 1
@@ -41,7 +43,7 @@ mi_inventory_backup() {
 }
 
 mi_inventory_emit_backup() {
-  out="$1"
+  local inventory_out="$1"
   {
     printf 'version: 1\n'
     printf 'created_at: %s\n' "$(mi_yaml_scalar "$(mi_timestamp)")"
@@ -50,36 +52,39 @@ mi_inventory_emit_backup() {
     printf '  hostname: %s\n' "$(mi_yaml_scalar "$(hostname 2>/dev/null || printf unknown)")"
     printf '  macos: %s\n' "$(mi_yaml_scalar "$(sw_vers -productVersion 2>/dev/null || uname -r)")"
     printf '  arch: %s\n' "$(mi_yaml_scalar "$(uname -m)")"
-  } >"$out"
+  } >"$inventory_out"
 
-  mi_inventory_emit_or_copy "$out" apps appstore_backup
+  mi_inventory_emit_or_copy "$inventory_out" apps appstore_backup
   MI_MATCHED_CASKS_FILE="$(mktemp "${TMPDIR:-/tmp}/mac-inventory-casks.XXXXXX")"
   export MI_MATCHED_CASKS_FILE
-  mi_inventory_emit_or_copy "$out" manual_apps manual_apps_backup
-  mi_inventory_emit_or_copy "$out" brew brew_backup
-  mi_inventory_emit_or_copy "$out" npm npm_backup
-  mi_inventory_emit_or_copy "$out" pip pip_backup
-  mi_inventory_emit_or_copy "$out" pipx pipx_backup
-  mi_inventory_emit_or_copy "$out" oh_my_zsh oh_my_zsh_backup
-  mi_inventory_emit_or_copy "$out" xcode xcode_backup
-  mi_inventory_emit_or_copy "$out" dotfiles dotfiles_backup
+  mi_inventory_emit_or_copy "$inventory_out" manual_apps manual_apps_backup
+  mi_inventory_emit_or_copy "$inventory_out" brew brew_backup
+  mi_inventory_emit_or_copy "$inventory_out" npm npm_backup
+  mi_inventory_emit_or_copy "$inventory_out" pip pip_backup
+  mi_inventory_emit_or_copy "$inventory_out" pipx pipx_backup
+  mi_inventory_emit_or_copy "$inventory_out" oh_my_zsh oh_my_zsh_backup
+  mi_inventory_emit_or_copy "$inventory_out" xcode xcode_backup
+  mi_inventory_emit_or_copy "$inventory_out" dotfiles dotfiles_backup
   rm -f "$MI_MATCHED_CASKS_FILE"
 }
 
 mi_inventory_emit_or_copy() {
-  out="$1"
-  section="$2"
-  fn="$3"
+  local target_out="$1"
+  local section="$2"
+  local fn="$3"
   if mi_source_enabled "$section" && mi_section_selected "$section"; then
-    "$fn" >>"$out"
+    if ! "$fn" >>"$target_out"; then
+      mi_warn "backup: section $section reported a non-fatal error; continuing"
+    fi
   elif [ "$MI_UPDATE" = "true" ] && [ -f "$MI_INVENTORY" ]; then
-    mi_inventory_copy_section "$MI_INVENTORY" "$section" >>"$out"
+    mi_inventory_copy_section "$MI_INVENTORY" "$section" >>"$target_out"
   fi
+  return 0
 }
 
 mi_inventory_copy_section() {
-  file="$1"
-  section="$2"
+  local file="$1"
+  local section="$2"
   awk -v section="$section" '
     $0 ~ "^" section ":" {printing=1; print; next}
     printing && /^[A-Za-z0-9_]+:/ {printing=0}
@@ -143,8 +148,8 @@ mi_inventory_restore_body() {
 }
 
 mi_restore_section() {
-  section="$1"
-  fn="$2"
+  local section="$1"
+  local fn="$2"
   mi_source_enabled "$section" || return 0
   mi_section_selected "$section" || return 0
   "$fn"

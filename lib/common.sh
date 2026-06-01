@@ -35,8 +35,9 @@ mi_bool() {
 }
 
 mi_prompt_yes_no() {
-  prompt="$1"
-  default="${2:-no}"
+  local prompt="$1"
+  local default="${2:-no}"
+  local suffix answer
 
   if [ "${MI_YES:-false}" = "true" ]; then
     return 0
@@ -75,6 +76,7 @@ mi_timestamp() {
 }
 
 mi_mkdir_parent() {
+  local dir
   dir="$(dirname -- "$1")"
   [ -d "$dir" ] || mkdir -p "$dir"
 }
@@ -93,8 +95,8 @@ mi_run() {
 }
 
 mi_install_brew_tool_if_allowed() {
-  tool="$1"
-  formula="${2:-$1}"
+  local tool="$1"
+  local formula="${2:-$1}"
   mi_has "$tool" && return 0
   [ "${MI_INSTALL_MISSING_TOOLS:-true}" = "true" ] || return 1
   mi_has brew || return 1
@@ -108,7 +110,8 @@ mi_command_timeout() {
 }
 
 mi_command_run() {
-  label="$1"
+  local label="$1"
+  local out err rc
   shift
   out="$(mktemp "${TMPDIR:-/tmp}/mac-inventory-command-out.XXXXXX")" || return 1
   err="$(mktemp "${TMPDIR:-/tmp}/mac-inventory-command-err.XXXXXX")" || { rm -f "$out"; return 1; }
@@ -121,8 +124,9 @@ mi_command_run() {
 }
 
 mi_command_capture() {
-  __var="$1"
-  label="$2"
+  local __var="$1"
+  local label="$2"
+  local out err rc value detail
   shift 2
   out="$(mktemp "${TMPDIR:-/tmp}/mac-inventory-command-out.XXXXXX")" || return 1
   err="$(mktemp "${TMPDIR:-/tmp}/mac-inventory-command-err.XXXXXX")" || { rm -f "$out"; return 1; }
@@ -140,9 +144,10 @@ mi_command_capture() {
 }
 
 mi_command_capture_files() {
-  label="$1"
-  out="$2"
-  err="$3"
+  local label="$1"
+  local out="$2"
+  local err="$3"
+  local timeout_seconds cmd_pid watchdog_pid rc
   shift 3
   timeout_seconds="$(mi_command_timeout)"
 
@@ -208,7 +213,7 @@ mi_command_capture_files() {
 }
 
 mi_brew_capture() {
-  __var="$1"
+  local __var="$1"
   shift
   mi_command_capture "$__var" "brew $*" \
     env HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_ANALYTICS=1 HOMEBREW_NO_INSTALL_CLEANUP=1 HOMEBREW_NO_ENV_HINTS=1 brew "$@"
@@ -219,19 +224,19 @@ mi_brew_run() {
 }
 
 mi_mas_capture() {
-  __var="$1"
+  local __var="$1"
   shift
   mi_command_capture "$__var" "mas $*" mas "$@"
 }
 
 mi_npm_capture() {
-  __var="$1"
+  local __var="$1"
   shift
   mi_command_capture "$__var" "npm $*" npm "$@"
 }
 
 mi_yaml_scalar() {
-  value="$1"
+  local value="$1"
   value=${value//\\/\\\\}
   value=${value//\"/\\\"}
   printf '"%s"' "$value"
