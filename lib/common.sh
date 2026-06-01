@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-MI_VERSION="0.4.0"
+MI_VERSION="0.5.0"
 
 mi_info() {
   if [ "${MI_QUIET:-false}" != "true" ]; then
@@ -296,6 +296,9 @@ Global options:
   -q, --quiet                         Quiet output
   -h, --help                          Show help
   -t, --command-timeout <seconds>      Timeout for external commands
+  -r, --report <path>                  Write an end-of-process report
+  -j, --report-format text|md|yaml|json Report file format
+  -R, --skip-report                    Suppress final process report
       --skip-prepare true|false        Skip restore prepare preflight
       --prepare-only                   Stop after prepare
       --pause-after-prepare true|false Pause after prepare completes
@@ -318,6 +321,7 @@ Restore options:
   -U, --use-versions true|false
   -T, --install-missing-tools true|false
   -L, --login-check true|false
+  -a, --appstore-login skip|prompt|pause|require
   -S, --section <name>
 
 Gist options:

@@ -4,6 +4,25 @@
 
 No unreleased changes yet.
 
+## 0.5.0 - 2026-06-01
+
+### Added
+
+- Added App Store login policy via `--appstore-login skip|prompt|pause|require` and `-a`.
+- Added final process reports for workflow commands, with optional `--report <path>`, `--report-format text|md|yaml|json`, and `--skip-report`.
+- Added config keys for App Store login policy and reports.
+- Added README/manual AI usage notes for safe agent changes.
+
+### Changed
+
+- App Store backup now records a clear skipped status when `mas` is missing, App Store is signed out, or `mas list` fails.
+- App Store and Xcode restore now check App Store sign-in before running `mas list` or `mas install`, avoiding repeated slow signed-out `mas` calls.
+- Markdown, YAML, JSON, and text reports summarize command status, dry-run state, duration, inventory counts, and manual blockers.
+
+### Fixed
+
+- Fixed report rendering edge cases for Markdown output and missing App Store inventory sections.
+
 ## 0.4.0 - 2026-06-01
 
 ### Added

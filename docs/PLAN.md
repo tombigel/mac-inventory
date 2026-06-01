@@ -52,6 +52,9 @@ Main options:
 - `--quiet`, `-q`
 - `--help`, `-h`
 - `--command-timeout`, `-t`
+- `--report`, `-r`
+- `--report-format`, `-j`
+- `--skip-report`, `-R`
 - `--skip-prepare`, `--prepare-only`, `--pause-after-prepare`
 - `--caffeinate`, `--resume-file`, `--reset-resume`, `--check-only`
 
@@ -77,6 +80,7 @@ Restore options:
 - `--use-versions=true|false`, `-U true|false`
 - `--install-missing-tools=true|false`, `-T true|false`
 - `--login-check=true|false`, `-L true|false`
+- `--appstore-login=skip|prompt|pause|require`, `-a skip|prompt|pause|require`
 - `--section <name>`, `-S <name>`
 
 Gist options:

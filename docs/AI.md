@@ -14,6 +14,10 @@ Use this guide when an AI coding agent works in this repo.
 - `status`: inspect resume state.
 - `backup`: generate inventory.
 
+Use `--appstore-login=skip|prompt|pause|require` when testing App Store flows. Never ask for or store Apple ID credentials.
+
+Use `--report`, `--report-format`, and `--skip-report` when validating process-report behavior. Reports must summarize outcomes without storing secrets, copied dotfile contents, tokens, or raw command output.
+
 ## Safety Checklist
 
 - No destructive cleanup.
@@ -42,5 +46,7 @@ mac-inventory continue --dry-run
 - Gist upload and token handling.
 - Homebrew bootstrap and installer download.
 - `mas` hanging when App Store is not signed in.
+- App Store login policy interactions with Xcode restore.
+- Process report accuracy and secret-free output.
 - Xcode CLT GUI prompts.
 - Resume-state consistency after interruption.

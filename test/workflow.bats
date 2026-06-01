@@ -75,3 +75,27 @@ YAML
   [ "$status" -eq 0 ]
   [[ "$output" == *"would use caffeinate"* ]]
 }
+
+@test "restore skips signed-out App Store in non-interactive mode" {
+  mock_command mas 'case "$1" in account) exit 1 ;; *) echo "unexpected mas $*" >&2; exit 1 ;; esac'
+  cat >"$BATS_TEST_TMPDIR/inventory.yml" <<'YAML'
+version: 1
+apps:
+  items:
+    - id: "123"
+      name: "Example"
+YAML
+
+  run "$BIN" restore --dry-run --interactive=false --skip-prepare=true --appstore-login=skip --apps=true --brew=false --npm=false --pip=false --pipx=false --oh-my-zsh=false --xcode=false --dotfiles=false --manual-apps=false --inventory "$BATS_TEST_TMPDIR/inventory.yml"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"App Store is not signed in"* ]]
+  [[ "$output" == *"App Store work would be skipped"* ]]
+}
+
+@test "prepare require policy reports App Store login blocker" {
+  mock_command mas 'case "$1" in account) exit 1 ;; *) exit 0 ;; esac'
+  run "$BIN" prepare --interactive=false --appstore-login=require --apps=true --xcode=false --pipx=false --resume-file "$BATS_TEST_TMPDIR/resume.yml"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"login required by --appstore-login=require"* ]]
+  [[ "$output" == *"workflow failed at step check_appstore_login"* ]]
+}

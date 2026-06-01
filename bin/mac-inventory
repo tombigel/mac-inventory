@@ -13,6 +13,8 @@ PROJECT_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)"
 . "$PROJECT_DIR/lib/config.sh"
 # shellcheck source=../lib/safety.sh
 . "$PROJECT_DIR/lib/safety.sh"
+# shellcheck source=../lib/report.sh
+. "$PROJECT_DIR/lib/report.sh"
 # shellcheck source=../lib/inventory.sh
 . "$PROJECT_DIR/lib/inventory.sh"
 # shellcheck source=../lib/gist.sh
@@ -43,71 +45,76 @@ main() {
   fi
 
   mi_config_apply
+  mi_report_start
+
+  rc=0
 
   if [ "$MI_GIST_PULL" = "true" ] && [ "$MI_COMMAND" != "gist" ]; then
-    mi_gist_pull
+    mi_gist_pull || rc=$?
   fi
 
-  case "$MI_COMMAND" in
-    backup)
-      mi_inventory_backup
-      rc=$?
-      ;;
-    restore)
-      mi_inventory_restore
-      rc=$?
-      ;;
-    prepare)
-      mi_workflow_run "prepare"
-      rc=$?
-      ;;
-    continue)
-      mi_workflow_continue
-      rc=$?
-      ;;
-    status)
-      mi_resume_reset_if_requested || return 1
-      mi_resume_status
-      rc=$?
-      ;;
-    list)
-      mi_inventory_list
-      rc=$?
-      ;;
-    doctor)
-      mi_doctor
-      rc=$?
-      ;;
-    config)
-      if [ "$MI_SUBCOMMAND" = "generate" ]; then
-        mi_config_generate
+  if [ "$rc" -eq 0 ]; then
+    case "$MI_COMMAND" in
+      backup)
+        mi_inventory_backup
         rc=$?
-      else
-        mi_error "unknown config command: ${MI_SUBCOMMAND:-<missing>}"
-        return 2
-      fi
-      ;;
-    gist)
-      case "$MI_SUBCOMMAND" in
-        pull) mi_gist_pull; rc=$? ;;
-        push) mi_gist_push; rc=$? ;;
-        *)
-          mi_error "unknown gist command: ${MI_SUBCOMMAND:-<missing>}"
-          return 2
-          ;;
-      esac
-      ;;
-    *)
-      mi_error "unknown command: $MI_COMMAND"
-      return 2
-      ;;
-  esac
-
-  [ "${rc:-0}" -eq 0 ] || return "$rc"
+        ;;
+      restore)
+        mi_inventory_restore
+        rc=$?
+        ;;
+      prepare)
+        mi_workflow_run "prepare"
+        rc=$?
+        ;;
+      continue)
+        mi_workflow_continue
+        rc=$?
+        ;;
+      status)
+        mi_resume_reset_if_requested || rc=$?
+        [ "$rc" -eq 0 ] && { mi_resume_status; rc=$?; }
+        ;;
+      list)
+        mi_inventory_list
+        rc=$?
+        ;;
+      doctor)
+        mi_doctor
+        rc=$?
+        ;;
+      config)
+        if [ "$MI_SUBCOMMAND" = "generate" ]; then
+          mi_config_generate
+          rc=$?
+        else
+          mi_error "unknown config command: ${MI_SUBCOMMAND:-<missing>}"
+          rc=2
+        fi
+        ;;
+      gist)
+        case "$MI_SUBCOMMAND" in
+          pull) mi_gist_pull; rc=$? ;;
+          push) mi_gist_push; rc=$? ;;
+          *)
+            mi_error "unknown gist command: ${MI_SUBCOMMAND:-<missing>}"
+            rc=2
+            ;;
+        esac
+        ;;
+      *)
+        mi_error "unknown command: $MI_COMMAND"
+        rc=2
+        ;;
+    esac
+  fi
 
   if [ "$MI_GIST_PUSH" = "true" ] && [ "$MI_COMMAND" != "gist" ]; then
-    mi_gist_push
+    [ "$rc" -eq 0 ] && { mi_gist_push || rc=$?; }
   fi
+
+  mi_report_finish "$rc"
+  return "$rc"
 }
 
 main "$@"

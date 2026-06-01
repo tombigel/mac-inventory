@@ -62,6 +62,15 @@ mac-inventory status
 mac-inventory continue
 ```
 
+Mac App Store restore depends on `mas` and an active App Store sign-in. The CLI never asks for Apple ID credentials. Use `--appstore-login=skip|prompt|pause|require` to choose whether signed-out App Store work is skipped, prompts to open the App Store, pauses for `mac-inventory continue`, or fails until login is available.
+
+Every `backup`, `prepare`, `restore`, `continue`, and Gist workflow emits a final process report unless `--skip-report` is used. To write a report file:
+
+```bash
+mac-inventory restore --dry-run --report reports/restore.md --report-format md
+mac-inventory backup --report reports/backup.yml --report-format yaml
+```
+
 ## Inventory Sources
 
 By default, backup includes:
@@ -91,6 +100,8 @@ mac-inventory restore -dyq
 mac-inventory restore -s true
 mac-inventory restore -w true -S brew
 mac-inventory restore -U true -y -I false
+mac-inventory restore --appstore-login=pause
+mac-inventory restore --skip-report
 
 mac-inventory backup --gist-create=true --gist-push
 mac-inventory restore -g abc123 --gist-pull --dry-run
@@ -120,7 +131,7 @@ mac-inventory backup -B=false
 
 ## Safety
 
-- `--dry-run` prevents writes, uploads, downloads, installs, upgrades, overwrites, license acceptance, and shell changes.
+- `--dry-run` prevents operational writes, uploads, downloads, installs, upgrades, overwrites, license acceptance, and shell changes. If `--report <path>` is explicitly passed, only that report artifact is written.
 - Dotfile restore defaults to skip existing files.
 - Explicit dotfile overwrite first backs up the existing file to `~/.mac-inventory/restore-backups/<timestamp>/`.
 - Remote installers are downloaded to temp files and executed only after policy allows it; the implementation does not use direct `curl | sh`.
@@ -134,6 +145,10 @@ mac-inventory restore -t 10 --dry-run
 ```
 
 Homebrew calls are run with auto-update, analytics, install cleanup, and env hints disabled for the invoked command where possible.
+
+## AI Agent Notes
+
+AI coding agents should read `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`, `docs/AI.md`, and `ai/codex-skill/SKILL.md` before changing behavior. Keep restore additive-only, preserve dry-run safety, avoid `eval` and direct `curl | sh`, do not commit generated inventories/reports/dotfiles, and use mocked package-manager commands in tests.
 
 ## Development
 

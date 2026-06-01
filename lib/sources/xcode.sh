@@ -47,6 +47,10 @@ xcode_restore() {
     return 0
   fi
   if mi_has mas; then
+    if ! appstore_login_ready; then
+      appstore_handle_missing_login "Xcode App Store restore"
+      return $?
+    fi
     mi_run mas install 497799835
   else
     mi_warn "xcode: mas missing; install Xcode manually from the App Store"

@@ -338,9 +338,14 @@ mi_workflow_step_check_appstore_login() {
   mi_action_intro "Check App Store login" "Required for mas install/list operations." "mas account" "If not signed in, open the App Store and sign in, then run mac-inventory continue."
   if ! mi_has mas; then
     mi_warn "appstore: mas missing"
+    mi_report_event warn apps mas_missing "mas is missing; App Store login could not be checked"
     return 0
   fi
-  mi_mas_capture mas_account account && mi_info "appstore: signed in" || mi_warn "appstore: not signed in"
+  if appstore_login_ready; then
+    mi_info "appstore: signed in"
+  else
+    appstore_handle_missing_login "prepare"
+  fi
 }
 
 mi_workflow_step_restore_inventory() {

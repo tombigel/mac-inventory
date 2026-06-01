@@ -38,6 +38,7 @@ mi_args_init() {
   MI_USE_VERSIONS="false"
   MI_INSTALL_MISSING_TOOLS="true"
   MI_LOGIN_CHECK="true"
+  MI_APPSTORE_LOGIN="prompt"
   MI_FORMAT="table"
   MI_INSTALLED_ONLY="false"
   MI_MISSING_ONLY="false"
@@ -52,6 +53,9 @@ mi_args_init() {
   MI_GITHUB_TOKEN=""
   MI_GITHUB_TOKEN_ENV="GITHUB_TOKEN"
   MI_COMMAND_TIMEOUT="30"
+  MI_REPORT=""
+  MI_REPORT_FORMAT="text"
+  MI_SKIP_REPORT="false"
   MI_SECTIONS=""
   MI_DOTFILES_PATHS=""
 }
@@ -114,7 +118,7 @@ mi_set_command_token() {
 
 mi_long_option_needs_value() {
   case "$1" in
-    --config|--inventory|--skip-prepare|--pause-after-prepare|--caffeinate|--resume-file|--check-only|--apps|--brew|--npm|--pip|--pipx|--oh-my-zsh|--xcode|--dotfiles|--manual-apps|--interactive|--check-manual-brew|--manual-brew-match|--versions|--dotfiles-path|--output|--skip-existing|--overwrite|--use-versions|--install-missing-tools|--login-check|--section|--format|--gist-id|--gist-create|--gist-visibility|--gist-file|--gist-config-file|--github-login|--github-token|--github-token-env|--command-timeout)
+    --config|--inventory|--skip-prepare|--pause-after-prepare|--caffeinate|--resume-file|--check-only|--apps|--brew|--npm|--pip|--pipx|--oh-my-zsh|--xcode|--dotfiles|--manual-apps|--interactive|--check-manual-brew|--manual-brew-match|--versions|--dotfiles-path|--output|--skip-existing|--overwrite|--use-versions|--install-missing-tools|--login-check|--appstore-login|--section|--format|--gist-id|--gist-create|--gist-visibility|--gist-file|--gist-config-file|--github-login|--github-token|--github-token-env|--command-timeout|--report|--report-format)
       return 0
       ;;
     *)
@@ -179,6 +183,9 @@ mi_set_long_option() {
     --use-versions) mi_set_bool_var MI_USE_VERSIONS "$value" || return 2 ;;
     --install-missing-tools) mi_set_bool_var MI_INSTALL_MISSING_TOOLS "$value" || return 2 ;;
     --login-check) mi_set_bool_var MI_LOGIN_CHECK "$value" || return 2 ;;
+    --appstore-login)
+      case "$value" in skip|prompt|pause|require) MI_APPSTORE_LOGIN="$value" ;; *) mi_error "--appstore-login expects skip, prompt, pause, or require"; return 2 ;; esac
+      ;;
     --section) MI_SECTIONS="${MI_SECTIONS}${MI_SECTIONS:+
 }$value" ;;
     --format)
@@ -206,13 +213,18 @@ mi_set_long_option() {
         *) MI_COMMAND_TIMEOUT="$value" ;;
       esac
       ;;
+    --report) MI_REPORT="$value" ;;
+    --report-format)
+      case "$value" in text|md|yaml|json) MI_REPORT_FORMAT="$value" ;; *) mi_error "--report-format expects text, md, yaml, or json"; return 2 ;; esac
+      ;;
+    --skip-report) MI_SKIP_REPORT="true" ;;
     *) mi_error "unknown option: $name"; return 2 ;;
   esac
 }
 
 mi_short_option_needs_value() {
   case "$1" in
-    c|i|A|B|N|P|Q|O|X|D|M|I|C|V|F|o|s|w|U|T|L|S|f|g|t)
+    c|i|A|B|N|P|Q|O|X|D|M|I|C|V|F|o|s|w|U|T|L|a|S|f|g|t|r|j)
       return 0
       ;;
     *)
@@ -251,12 +263,16 @@ mi_short_to_long() {
     U) printf '%s' --use-versions ;;
     T) printf '%s' --install-missing-tools ;;
     L) printf '%s' --login-check ;;
+    a) printf '%s' --appstore-login ;;
     S) printf '%s' --section ;;
     f) printf '%s' --format ;;
     e) printf '%s' --installed-only ;;
     m) printf '%s' --missing-only ;;
     g) printf '%s' --gist-id ;;
     t) printf '%s' --command-timeout ;;
+    r) printf '%s' --report ;;
+    j) printf '%s' --report-format ;;
+    R) printf '%s' --skip-report ;;
     *) return 1 ;;
   esac
 }

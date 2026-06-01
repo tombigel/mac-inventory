@@ -60,6 +60,8 @@ mac-inventory restore -i mac-inventory.yml --dry-run
 mac-inventory restore -S brew
 mac-inventory restore --skip-existing=true
 mac-inventory restore --overwrite=true -S dotfiles
+mac-inventory restore --appstore-login=pause
+mac-inventory restore --report reports/restore.md --report-format md
 mac-inventory restore -g abc123 --gist-pull --dry-run
 ```
 
@@ -67,7 +69,9 @@ Restore checks existing installations first. By default, existing items are skip
 
 Restore runs `prepare` first unless `--skip-prepare=true` is passed.
 
-`--dry-run` prevents installs, downloads, Gist writes, dotfile copies, overwrites, shell changes, and license acceptance.
+`--dry-run` prevents installs, downloads, Gist writes, inventory writes, dotfile copies, overwrites, shell changes, and license acceptance. If `--report <path>` is explicitly passed, only that report artifact is written.
+
+Mac App Store restore requires `mas` plus a signed-in App Store app. The CLI never asks for Apple ID credentials. Use `--appstore-login` to choose skip, prompt, pause/resume, or require behavior.
 
 ### `prepare`
 
@@ -249,6 +253,8 @@ Reject optional prompts.
 
 Print planned work without side effects.
 
+An explicit `--report <path>` may still write the requested report artifact during dry-run.
+
 `--verbose`, `-v`
 
 Print more detailed command and failure information.
@@ -308,6 +314,22 @@ Remove stale resume state after confirmation.
 `--check-only true|false`
 
 Check prerequisites without installing. Used by prepare-style checks.
+
+### Report Options
+
+`--report <path>`, `-r <path>`
+
+Write an end-of-process report to a file instead of only printing the terminal summary.
+
+`--report-format text|md|yaml|json`, `-j text|md|yaml|json`
+
+Report file format. Default: `text`.
+
+`--skip-report`, `-R`
+
+Suppress the final process report. Errors and warnings still print through normal command output.
+
+Reports include command, status, dry-run state, inventory path, duration, inventory counts where available, and warnings or manual actions such as missing App Store login. Reports must not include secrets, tokens, copied dotfile contents, or raw command output.
 
 ## Backup Options
 
@@ -374,6 +396,17 @@ Prompt/install missing helpers such as `mas`, `yq`, and `pipx` where supported. 
 `--login-check true|false`, `-L true|false`
 
 Check login/auth state where detectable. Default: `true`.
+
+`--appstore-login skip|prompt|pause|require`, `-a skip|prompt|pause|require`
+
+Control behavior when App Store login is missing and `mas` is needed.
+
+- `skip`: skip App Store inventory/restore work and continue other sections.
+- `prompt`: in interactive mode, offer to open the App Store app, then continue without using `mas` until sign-in is available. In non-interactive mode, behaves like `skip`.
+- `pause`: open/prompt when allowed, mark the workflow as blocked, and resume after sign-in with `mac-inventory continue`.
+- `require`: fail the workflow until App Store login is available.
+
+The CLI does not accept Apple ID credentials and does not attempt to automate Apple sign-in.
 
 `--section <name>`, `-S <name>`
 
@@ -533,6 +566,29 @@ prepare:
   install_mas: prompt
   install_pipx: prompt
   pause_after_manual_steps: true
+
+backup:
+  check_manual_brew: false
+  manual_brew_match: ask
+  dotfiles:
+    - ~/.zshrc
+    - ~/.gitconfig
+    - ~/.gitignore_global
+    - ~/.ssh/config
+
+restore:
+  appstore_login: prompt
+  dotfiles_mode: skip_existing
+  oh_my_zsh_mode: install_if_missing
+  xcode:
+    install_command_line_tools: true
+    install_xcode_app: prompt
+    accept_license: prompt
+
+reports:
+  path: ""
+  format: text
+  skip: false
 ```
 
 CLI flags override config defaults for the current run.
@@ -552,7 +608,9 @@ version: 1
 created_at: "..."
 updated_at: "..."
 host: {}
-apps: []
+apps:
+  status: ok
+  items: []
 manual_apps: {}
 brew: {}
 npm: {}
@@ -616,7 +674,25 @@ mas install 497799835
 
 when `mas` is available.
 
-Apple ID login and Xcode account state cannot be fully automated; the CLI reports actionable warnings where possible.
+Apple ID login and Xcode account state cannot be fully automated. If App Store login is missing, `--appstore-login` determines whether Xcode App Store restore is skipped, prompts, pauses for resume, or fails.
+
+## Process Reports
+
+By default, workflow commands print a final process report:
+
+```text
+Process report
+  command: restore
+  status: ok
+  dry_run: true
+  inventory: mac-inventory.yml
+  duration_seconds: 12
+  counts: apps=0 brew_formulae=47 brew_casks=43 npm=3 pip=4 pipx=0 manual_apps=105 dotfiles=4
+  warnings/actions:
+    - [warn] apps/appstore_not_logged_in: App Store is not signed in; restore cannot use mas until you sign in to the App Store app
+```
+
+Use `--report <path>` to write the report to a file. Use `--skip-report` when embedding output in another script and the summary would be noisy.
 
 ## Exit Status
 
@@ -635,6 +711,7 @@ Apple ID login and Xcode account state cannot be fully automated; the CLI report
 - `docs/PLAN.md`: implementation plan.
 - `docs/PROMPT.md`: prompt history.
 - `docs/MANUAL.md`: this manual.
+- report files: optional user-selected output from `--report`; do not commit reports unless intentionally reviewed.
 
 ## Environment
 
@@ -659,6 +736,18 @@ Used for temporary command output, downloaded installers, and timeout wrappers.
 - Use `--versions=false` when you want a faster inventory without remote version lookups.
 - Use `--command-timeout` to keep package-manager hangs bounded.
 - Use `mac-inventory continue` after interrupting a prepare or restore workflow.
+
+## AI Contributor Notes
+
+AI coding agents should read the repo-local guidance before changing behavior:
+
+- `AGENTS.md`
+- `CLAUDE.md`
+- `.github/copilot-instructions.md`
+- `docs/AI.md`
+- `ai/codex-skill/SKILL.md`
+
+When implementing changes, keep restore additive-only, preserve `--dry-run` behavior, avoid `eval`, avoid direct `curl | sh`, quote variables, keep resume/report state free of secrets and copied file contents, and test package-manager flows with mocked commands rather than real installs.
 
 ## Examples
 

@@ -55,3 +55,16 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"timed out after 1s"* ]]
 }
+
+@test "skip-report suppresses final process report" {
+  run "$BIN" backup --dry-run --skip-report --apps=false --brew=false --npm=false --pip=false --pipx=false --oh-my-zsh=false --xcode=false --dotfiles=false --manual-apps=false
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"Process report"* ]]
+}
+
+@test "writes markdown report when requested" {
+  run "$BIN" backup --dry-run --report "$BATS_TEST_TMPDIR/report.md" --report-format md --apps=false --brew=false --npm=false --pip=false --pipx=false --oh-my-zsh=false --xcode=false --dotfiles=false --manual-apps=false
+  [ "$status" -eq 0 ]
+  [ -f "$BATS_TEST_TMPDIR/report.md" ]
+  grep -q '# mac-inventory Process Report' "$BATS_TEST_TMPDIR/report.md"
+}

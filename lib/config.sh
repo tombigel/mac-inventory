@@ -18,9 +18,30 @@ mi_config_apply() {
     mi_config_string defaults.resume_file MI_RESUME_FILE
     mi_config_bool prepare.pause_after_manual_steps MI_PAUSE_AFTER_PREPARE
     mi_config_number defaults.command_timeout MI_COMMAND_TIMEOUT
+    mi_config_enum restore.appstore_login MI_APPSTORE_LOGIN skip prompt pause require
+    mi_config_string reports.path MI_REPORT
+    mi_config_enum reports.format MI_REPORT_FORMAT text md yaml json
+    mi_config_bool reports.skip MI_SKIP_REPORT
   elif [ -f "$MI_CONFIG" ]; then
     mi_warn "config exists but yq is not installed; using CLI/default values"
   fi
+}
+
+mi_config_enum() {
+  key="$1"
+  var="$2"
+  shift 2
+  value="$(yq e ".$key // \"\"" "$MI_CONFIG" 2>/dev/null)"
+  case "$value" in
+    ''|null) return 0 ;;
+  esac
+  for allowed in "$@"; do
+    if [ "$value" = "$allowed" ]; then
+      printf -v "$var" '%s' "$value"
+      return 0
+    fi
+  done
+  mi_warn "config $key has unsupported value; ignoring"
 }
 
 mi_config_number() {
@@ -104,6 +125,7 @@ backup:
     - ~/.ssh/config
 
 restore:
+  appstore_login: prompt
   dotfiles_mode: skip_existing
   oh_my_zsh_mode: install_if_missing
   xcode:
@@ -123,6 +145,11 @@ gist:
   visibility: secret
   inventory_file: mac-inventory.yml
   config_file: mac-inventory.config.yml
+
+reports:
+  path: ""
+  format: text
+  skip: false
 EOF
   mi_info "wrote $output"
 }

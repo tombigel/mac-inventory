@@ -38,3 +38,6 @@ It should support:
 - Add GitHub Gist input/output for config and inventory, with interactive `gh` login or token/env credentials.
 - Use parallel subagents when implementation can be safely split, while keeping integration in the main thread.
 - Add a clean-Mac bootstrap flow with prerequisite installation, resume/continue support, optional caffeinate, clean verbose UX, and AI-agent repo guidance.
+- Improve signed-out App Store handling so `mas` operations do not repeatedly hang or fail unclearly.
+- Add end-of-process reports, plus a `--skip-report` flag and report file/format options.
+- Update README/manual AI usage notes so coding agents know how to use the repo safely.
