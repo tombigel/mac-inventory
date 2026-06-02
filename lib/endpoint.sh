@@ -88,7 +88,7 @@ mi_endpoint_preflight_icloud() {
 mi_endpoint_command_mode() {
   case "$MI_COMMAND" in
     backup) printf '%s\n' "target" ;;
-    restore) printf '%s\n' "source" ;;
+    restore|list) printf '%s\n' "source" ;;
     *) printf '%s\n' "" ;;
   esac
 }

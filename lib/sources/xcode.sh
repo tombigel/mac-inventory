@@ -47,15 +47,11 @@ xcode_restore() {
     mi_info "xcode: Xcode.app already installed"
     return 0
   fi
-  if mi_has mas; then
-    if ! appstore_login_ready; then
-      appstore_handle_missing_login "Xcode App Store restore"
-      return $?
-    fi
-    mi_run mas install 497799835
-  else
-    mi_warn "xcode: mas missing; install Xcode manually from the App Store"
+  if ! appstore_ensure_mas "Xcode App Store restore"; then
+    [ "$MI_APPSTORE_LOGIN" = "skip" ] && { mi_warn "xcode: mas missing; install Xcode manually from the App Store"; return 0; }
+    return 1
   fi
+  mi_run mas install 497799835
 }
 
 xcode_doctor() {

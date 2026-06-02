@@ -75,7 +75,7 @@ Then run the additive restore:
 ./bin/mac-setup restore --appstore-login=pause
 ```
 
-`restore` runs `prepare` automatically unless `--skip-prepare=true` is passed. `prepare` checks or installs clean-Mac prerequisites such as Xcode Command Line Tools, Homebrew, `yq`, `mas`, `pipx`, GitHub auth, and App Store login readiness.
+`restore` runs `prepare` automatically unless `--skip-prepare=true` is passed. `prepare` checks or installs clean-Mac prerequisites such as Xcode Command Line Tools, Homebrew, `yq`, `mas`, `pipx`, GitHub auth, and App Store access readiness.
 
 If the process is interrupted, inspect or resume it:
 
@@ -101,7 +101,7 @@ No arguments, `help`, `--help`, and `-h` show help.
 
 ## Restore Notes
 
-Mac App Store restore depends on `mas` and an active App Store sign-in. The CLI never asks for Apple ID credentials. Use `--appstore-login=skip|prompt|pause|require` to choose whether signed-out App Store work is skipped, prompts to open the App Store, pauses for `mac-setup continue`, or fails until login is available.
+Mac App Store backup and restore depend on `mas` and an active App Store sign-in. The CLI never asks for Apple ID credentials and cannot automate Apple sign-in. By default, enabled App Store work is required: the CLI tries to install/check `mas`, prompts to open the App Store when interactive, and fails until sign-in is available. Use `--apps=false` or `--appstore-login=skip` only when you explicitly want to omit App Store apps.
 
 Every `backup`, `prepare`, `restore`, `continue`, and Gist workflow emits a final process report unless `--skip-report` is used. To write a report file:
 
@@ -133,6 +133,7 @@ mac-setup backup --check-manual-brew=true --manual-brew-match=ask
 mac-setup backup --check-manual-brew=true --manual-brew-match=all -y
 
 mac-setup list -S brew
+mac-setup list -f md
 mac-setup list -f yaml
 
 mac-setup restore -dyq

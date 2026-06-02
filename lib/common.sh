@@ -342,7 +342,7 @@ Gist options:
 
 List options:
   -S, --section <name>
-  -f, --format table|yaml|json
+  -f, --format table|yaml|json|md
   -e, --installed-only
   -m, --missing-only
 

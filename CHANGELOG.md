@@ -10,6 +10,7 @@
 - Added iCloud endpoint preflight checks, macOS privacy guidance, endpoint metadata, and timestamped iCloud history for replaced snapshots.
 - Added config keys for default storage endpoints and the iCloud bundle folder name.
 - Added endpoint Bats coverage and a manual iCloud endpoint smoke-test script.
+- Added `list --format md` for a human-readable Markdown setup snapshot summary.
 
 ### Changed
 
@@ -17,12 +18,17 @@
 - Moved the README manual and usage documentation links near the top of the file.
 - Updated common usage docs to show iCloud-first backup and restore, with GitHub/Gist as an explicit developer option.
 - Updated GitHub/Gist dry-run flows so they report intended work without requiring GitHub authentication first.
+- Changed App Store handling to require working `mas` and App Store authentication by default whenever the App Store source is enabled, instead of silently skipping App Store apps.
+- Replaced the invalid `mas account` readiness check with real `mas list` access checks.
+- Changed the stale resume prompt so declining to continue starts a fresh requested workflow instead of aborting.
+- Changed `list` to use the source endpoint flow, so it defaults to the iCloud setup snapshot like `restore`.
 
 ### Fixed
 
 - Preserved explicit snapshot paths when iCloud endpoint defaults are active.
 - Fixed validation failures from shellcheck and host-dependent Bats fixtures.
 - Enforced the documented `yq v4` requirement instead of accepting any `yq` binary on `PATH`.
+- Made App Store inventory failures abort backup unless the user explicitly disables App Store work.
 
 ## 0.5.0 - 2026-06-01
 

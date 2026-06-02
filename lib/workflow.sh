@@ -124,8 +124,8 @@ mi_resume_existing_policy() {
     MI_COMMAND="continue"
     return 0
   fi
-  mi_error "aborting because resume state exists"
-  return 1
+  mi_warn "starting a fresh workflow and replacing stale resume state"
+  mi_resume_remove
 }
 
 mi_resume_step_status() {
@@ -315,11 +315,10 @@ mi_workflow_step_install_yq() {
 }
 
 mi_workflow_step_install_mas() {
-  mi_action_intro "Install mas" "Required for Mac App Store inventory and App Store-based Xcode restore." "brew install mas" "App Store login may still require manual action."
+  mi_action_intro "Install mas" "Required for Mac App Store inventory and App Store-based Xcode restore." "brew install mas" "Homebrew or macOS may prompt for administrator credentials; App Store login still requires manual sign-in."
   mi_has mas && { mi_info "mas: found"; return 0; }
   [ "$MI_CHECK_ONLY" = "true" ] && { mi_warn "mas: missing"; return 0; }
-  [ "$MI_DRY_RUN" = "true" ] && { mi_info "dry-run: would install mas"; return 0; }
-  mi_install_brew_tool_if_allowed mas mas
+  appstore_ensure_mas "prepare"
 }
 
 mi_workflow_step_install_pipx() {
@@ -336,14 +335,18 @@ mi_workflow_step_check_github_auth() {
 }
 
 mi_workflow_step_check_appstore_login() {
-  mi_action_intro "Check App Store login" "Required for mas install/list operations." "mas account" "If not signed in, open the App Store and sign in, then run ${MI_PROGRAM_NAME:-mac-setup} continue."
+  mi_action_intro "Check App Store access" "Required for mas install/list operations." "mas list" "mas may prompt for administrator credentials or App Store authentication."
   if ! mi_has mas; then
     mi_warn "appstore: mas missing"
-    mi_report_event warn apps mas_missing "mas is missing; App Store login could not be checked"
+    mi_report_event warn apps mas_missing "mas is missing; App Store access could not be checked"
     return 0
   fi
-  if appstore_login_ready; then
-    mi_info "appstore: signed in"
+  if [ "$MI_DRY_RUN" = "true" ]; then
+    mi_info "dry-run: would run mas list to check App Store access"
+    return 0
+  fi
+  if appstore_access_ready; then
+    mi_info "appstore: mas list succeeded"
   else
     appstore_handle_missing_login "prepare"
   fi

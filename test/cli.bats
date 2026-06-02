@@ -52,8 +52,16 @@ setup() {
 @test "command timeout fails slow mas inventory with warning" {
   mock_command mas 'if [ "$1" = "account" ]; then echo "user@example.com"; elif [ "$1" = "list" ]; then sleep 5; fi'
   run "$BIN" backup --target local --apps=true --brew=false --npm=false --pip=false --pipx=false --oh-my-zsh=false --xcode=false --dotfiles=false --manual-apps=false --command-timeout 1
-  [ "$status" -eq 0 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *"timed out after 1s"* ]]
+  [[ "$output" == *"App Store inventory is required"* ]]
+}
+
+@test "backup can explicitly skip signed-out App Store inventory" {
+  mock_command mas 'case "$1" in list) exit 1 ;; *) echo "unexpected mas $*" >&2; exit 1 ;; esac'
+  run "$BIN" backup --target local --appstore-login=skip --apps=true --brew=false --npm=false --pip=false --pipx=false --oh-my-zsh=false --xcode=false --dotfiles=false --manual-apps=false
+  [ "$status" -eq 0 ]
+  grep -q 'status: "skipped_mas_list_failed"' mac-setup.yml
 }
 
 @test "skip-report suppresses final process report" {
@@ -67,4 +75,33 @@ setup() {
   [ "$status" -eq 0 ]
   [ -f "$BATS_TEST_TMPDIR/report.md" ]
   grep -q '# Mac Setup Snapshot Process Report' "$BATS_TEST_TMPDIR/report.md"
+}
+
+@test "list can render human-readable markdown" {
+  command -v yq >/dev/null 2>&1 || skip "yq is required for markdown list rendering"
+  cat >snapshot.yml <<'YAML'
+version: 1
+created_at: "2026-06-01T00:00:00Z"
+host:
+  hostname: "test-mac"
+brew:
+  formulae:
+    - name: "git"
+      version: "2.0"
+  casks: []
+npm:
+  globals:
+    - name: "typescript"
+      version: "5.0.0"
+YAML
+
+  run "$BIN" list --source local --inventory snapshot.yml --format md
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"# Mac Setup Snapshot"* ]]
+  [[ "$output" == *"## Host"* ]]
+  [[ "$output" == *"| hostname | test-mac |"* ]]
+  [[ "$output" == *"## Homebrew Formulae"* ]]
+  [[ "$output" == *"| git | 2.0 |"* ]]
+  [[ "$output" == *"## npm Globals"* ]]
+  [[ "$output" == *"| typescript | 5.0.0 |"* ]]
 }

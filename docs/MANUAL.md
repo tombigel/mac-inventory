@@ -128,7 +128,7 @@ Restore runs `prepare` first unless `--skip-prepare=true` is passed.
 
 `--dry-run` prevents installs, downloads, Gist writes, snapshot writes, dotfile copies, overwrites, shell changes, and license acceptance. If `--report <path>` is explicitly passed, only that report artifact is written.
 
-Mac App Store restore requires `mas` plus a signed-in App Store app. The CLI never asks for Apple ID credentials. Use `--appstore-login` to choose skip, prompt, pause/resume, or require behavior.
+Mac App Store backup and restore require `mas` plus a signed-in App Store app when the App Store source is enabled. The CLI never asks for Apple ID credentials and cannot automate Apple sign-in. By default, it tries to make `mas` usable and then fails until App Store sign-in is available. Use `--apps=false` or `--appstore-login=skip` only when you explicitly want to omit App Store apps.
 
 ### `prepare`
 
@@ -149,7 +149,7 @@ Prerequisite order:
 4. `mas`, when App Store or Xcode restore is enabled.
 5. `pipx`, when pipx restore is enabled.
 6. GitHub auth, when Gist sync is enabled.
-7. App Store login, when `mas` is needed.
+7. App Store access through `mas list`, when `mas` is needed.
 
 ### `continue`
 
@@ -179,13 +179,17 @@ mac-setup list
 mac-setup list -i mac-setup.yml
 mac-setup list -S brew
 mac-setup list -S manual_apps
+mac-setup list --format md
 mac-setup list --format yaml
 mac-setup list --format json
 ```
 
+Without `--inventory` or `--source local`, `list` reads the default source endpoint, which is iCloud Drive unless config changes it.
+
 Formats:
 
 - `table`: default, prints section names or selected section labels.
+- `md`: prints a human-readable Markdown summary with tables.
 - `yaml`: prints the full setup snapshot or selected YAML sections.
 - `json`: converts the setup snapshot to JSON with `yq`.
 
@@ -207,7 +211,7 @@ Checks include:
 - `pip3`
 - `pipx`
 - GitHub/Gist authentication
-- App Store `mas account`
+- App Store access through `mas list`
 - Oh My Zsh installation
 - Xcode Command Line Tools
 - selected developer directory
@@ -398,6 +402,8 @@ Resume checklist path. Default: `~/.mac-setup/resume.yml`.
 
 Remove stale resume state after confirmation.
 
+When an interactive `prepare` or `restore` finds existing resume state, answering `yes` continues the interrupted workflow. Answering `no` replaces the stale resume state and starts the newly requested workflow.
+
 `--check-only true|false`
 
 Check prerequisites without installing. Used by prepare-style checks.
@@ -416,7 +422,7 @@ Report file format. Default: `text`.
 
 Suppress the final process report. Errors and warnings still print through normal command output.
 
-Reports include command, status, dry-run state, setup snapshot path, duration, snapshot counts where available, and warnings or manual actions such as missing App Store login. Reports must not include secrets, tokens, copied dotfile contents, or raw command output.
+Reports include command, status, dry-run state, setup snapshot path, duration, snapshot counts where available, and warnings or manual actions such as missing App Store authentication. Reports must not include secrets, tokens, copied dotfile contents, or raw command output.
 
 ## Backup Options
 
@@ -486,12 +492,12 @@ Check login/auth state where detectable. Default: `true`.
 
 `--appstore-login skip|prompt|pause|require`, `-a skip|prompt|pause|require`
 
-Control behavior when App Store login is missing and `mas` is needed.
+Control behavior when App Store authentication is missing and `mas` is needed.
 
 - `skip`: skip App Store inventory/restore work and continue other sections.
-- `prompt`: in interactive mode, offer to open the App Store app, then continue without using `mas` until sign-in is available. In non-interactive mode, behaves like `skip`.
+- `prompt`: in interactive mode, offer to open the App Store app, then fail until sign-in is available. In non-interactive mode, fails with guidance instead of skipping.
 - `pause`: open/prompt when allowed, mark the workflow as blocked, and resume after sign-in with `mac-setup continue`.
-- `require`: fail the workflow until App Store login is available.
+- `require`: fail the workflow until App Store authentication is available.
 
 The CLI does not accept Apple ID credentials and does not attempt to automate Apple sign-in.
 
@@ -759,15 +765,15 @@ xcode-select --install
 
 for missing Command Line Tools.
 
-For Xcode.app, restore prefers:
+For Xcode.app, restore uses:
 
 ```bash
 mas install 497799835
 ```
 
-when `mas` is available.
+when Xcode restore is enabled. `mas` and App Store sign-in are required by default; pass `--xcode=false` or `--appstore-login=skip` only when you explicitly want to skip App Store-backed Xcode restore.
 
-Apple ID login and Xcode account state cannot be fully automated. If App Store login is missing, `--appstore-login` determines whether Xcode App Store restore is skipped, prompts, pauses for resume, or fails.
+Apple ID login and Xcode account state cannot be fully automated. If App Store authentication is missing, `--appstore-login` determines whether Xcode App Store restore is explicitly skipped, prompts and blocks, pauses for resume, or fails immediately.
 
 ## Process Reports
 
@@ -782,7 +788,7 @@ Process report
   duration_seconds: 12
   counts: apps=0 brew_formulae=47 brew_casks=43 npm=3 pip=4 pipx=0 manual_apps=105 dotfiles=4
   warnings/actions:
-    - [warn] apps/appstore_not_logged_in: App Store is not signed in; restore cannot use mas until you sign in to the App Store app
+    - [warn] apps/appstore_not_logged_in: App Store access is unavailable; restore cannot use mas until App Store authentication succeeds
 ```
 
 Use `--report <path>` to write the report to a file. Use `--skip-report` when embedding output in another script and the summary would be noisy.

@@ -52,8 +52,24 @@ apps: []
 YAML
   mock_command yq 'if [ "$1" = "--version" ]; then echo "yq (https://github.com/mikefarah/yq/) version v4.0.0"; exit 0; fi; exit 0'
 
-  run "$BIN" restore --dry-run --skip-prepare=true --interactive=false --install-missing-tools=false --icloud-root "$ICLOUD_ROOT"
+  run "$BIN" restore --dry-run --skip-prepare=true --interactive=false --install-missing-tools=false --apps=false --xcode=false --icloud-root "$ICLOUD_ROOT"
   [ "$status" -eq 0 ]
+}
+
+@test "list defaults to iCloud bundle when present" {
+  make_icloud
+  mkdir -p "$ICLOUD_ROOT/Mac Setup Snapshot"
+  cat >"$ICLOUD_ROOT/Mac Setup Snapshot/mac-setup.yml" <<'YAML'
+version: 1
+apps: []
+brew: []
+YAML
+
+  run "$BIN" list --interactive=false --icloud-root "$ICLOUD_ROOT"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"version"* ]]
+  [[ "$output" == *"apps"* ]]
+  [[ "$output" == *"brew"* ]]
 }
 
 @test "missing iCloud in non-interactive mode fails clearly" {
@@ -76,8 +92,26 @@ version: 1
 apps: []
 YAML
   mock_command yq 'if [ "$1" = "--version" ]; then echo "yq (https://github.com/mikefarah/yq/) version v4.0.0"; exit 0; fi; exit 0'
-  run "$BIN" restore --source local --inventory inventory.yml --skip-prepare=true --dry-run
+  run "$BIN" restore --source local --inventory inventory.yml --skip-prepare=true --dry-run --apps=false --xcode=false
   [ "$status" -eq 0 ]
+}
+
+@test "explicit inventory preserves local list behavior" {
+  make_icloud
+  mkdir -p "$ICLOUD_ROOT/Mac Setup Snapshot"
+  cat >"$ICLOUD_ROOT/Mac Setup Snapshot/mac-setup.yml" <<'YAML'
+version: 1
+apps: []
+YAML
+  cat >custom.yml <<'YAML'
+version: 1
+npm: []
+YAML
+
+  run "$BIN" list --interactive=false --icloud-root "$ICLOUD_ROOT" --inventory custom.yml
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"npm"* ]]
+  [[ "$output" != *"apps"* ]]
 }
 
 @test "target github routes through Gist push dry-run" {

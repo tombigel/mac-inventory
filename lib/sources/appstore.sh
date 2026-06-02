@@ -1,9 +1,42 @@
 #!/usr/bin/env bash
 
-appstore_login_ready() {
+appstore_access_ready() {
+  local mas_lines
   [ "$MI_LOGIN_CHECK" = "true" ] || return 0
   mi_has mas || return 1
-  mi_mas_capture mas_account account >/dev/null 2>&1
+  mi_mas_capture mas_lines list >/dev/null 2>&1
+}
+
+appstore_ensure_mas() {
+  local context="$1"
+  if mi_has mas; then
+    return 0
+  fi
+
+  mi_warn "apps: mas missing; $context cannot use Mac App Store apps"
+  mi_report_event warn apps mas_missing "mas is missing; $context cannot use Mac App Store apps"
+
+  if [ "$MI_APPSTORE_LOGIN" = "skip" ]; then
+    mi_info "appstore: skipping App Store work because --appstore-login=skip"
+    return 1
+  fi
+  if [ "$MI_INSTALL_MISSING_TOOLS" != "true" ]; then
+    mi_error "mas is required for App Store work; pass --apps=false or --appstore-login=skip to skip it"
+    return 1
+  fi
+  if [ "$MI_DRY_RUN" = "true" ]; then
+    mi_info "dry-run: would install mas with Homebrew"
+    return 0
+  fi
+  if [ "$MI_INTERACTIVE" != "true" ] || [ ! -t 0 ]; then
+    mi_error "mas is required for App Store work; run prepare interactively or pass --apps=false/--appstore-login=skip"
+    return 1
+  fi
+
+  mi_install_brew_tool_if_allowed mas mas || {
+    mi_error "mas installation did not complete; App Store work cannot continue"
+    return 1
+  }
 }
 
 appstore_open_prompt() {
@@ -17,14 +50,14 @@ appstore_open_prompt() {
 
 appstore_handle_missing_login() {
   local context="$1"
-  local message="App Store is not signed in; $context cannot use mas until you sign in to the App Store app"
+  local message="App Store access is unavailable; $context cannot use mas until App Store authentication succeeds"
   mi_warn "$message"
   mi_report_event warn apps appstore_not_logged_in "$message"
 
   if [ "$MI_DRY_RUN" = "true" ]; then
     case "$MI_APPSTORE_LOGIN" in
       skip) mi_info "dry-run: App Store work would be skipped" ;;
-      prompt) mi_info "dry-run: would prompt to open App Store, then skip App Store work until sign-in" ;;
+      prompt) mi_info "dry-run: would prompt to open App Store and require sign-in before using mas" ;;
       pause) mi_info "dry-run: would pause and resume after App Store sign-in" ;;
       require) mi_info "dry-run: would fail until App Store sign-in is available" ;;
     esac
@@ -39,19 +72,19 @@ appstore_handle_missing_login() {
     prompt)
       if [ "$MI_INTERACTIVE" = "true" ] && [ -t 0 ]; then
         appstore_open_prompt
-        mi_warn "appstore: sign in, then rerun this command or use ${MI_PROGRAM_NAME:-mac-setup} continue if a resume file exists"
+        mi_error "appstore: authenticate in the App Store app or mas prompt, then rerun this command or use ${MI_PROGRAM_NAME:-mac-setup} continue if a resume file exists"
       else
-        mi_info "appstore: non-interactive prompt policy behaves like skip"
+        mi_error "appstore: authentication required; run interactively or pass --appstore-login=skip"
       fi
-      return 0
+      return 1
       ;;
     pause)
       appstore_open_prompt
-      mi_error "appstore: sign in to the App Store app, then run: ${MI_PROGRAM_NAME:-mac-setup} continue"
+      mi_error "appstore: authenticate in the App Store app or mas prompt, then run: ${MI_PROGRAM_NAME:-mac-setup} continue"
       return 1
       ;;
     require)
-      mi_error "appstore: login required by --appstore-login=require"
+      mi_error "appstore: authentication required by --appstore-login=require"
       return 1
       ;;
   esac
@@ -60,26 +93,19 @@ appstore_handle_missing_login() {
 appstore_backup() {
   local mas_lines line id version name
   printf 'apps:\n'
-  if ! mi_has mas; then
-    mi_warn "apps: mas missing; skipping App Store inventory"
-    mi_report_event warn apps mas_missing "mas is missing; App Store inventory was skipped"
+  if ! appstore_ensure_mas "backup"; then
     printf '  status: "skipped_mas_missing"\n'
     printf '  items: []\n'
-    return 0
-  fi
-  if ! appstore_login_ready; then
-    mi_warn "apps: App Store is not signed in; skipping App Store inventory"
-    mi_report_event warn apps appstore_not_logged_in "App Store is not signed in; App Store inventory was skipped"
-    printf '  status: "skipped_not_logged_in"\n'
-    printf '  items: []\n'
-    return 0
+    [ "$MI_APPSTORE_LOGIN" = "skip" ] && return 0
+    return 1
   fi
   if ! mi_mas_capture mas_lines list; then
-    mi_warn "apps: mas list failed; skipping App Store inventory"
-    mi_report_event warn apps mas_list_failed "mas list failed; App Store inventory was skipped"
+    appstore_handle_missing_login "backup"
+    mi_report_event warn apps mas_list_failed "mas list failed; App Store inventory could not continue"
     printf '  status: "skipped_mas_list_failed"\n'
     printf '  items: []\n'
-    return 0
+    [ "$MI_APPSTORE_LOGIN" = "skip" ] && return 0
+    return 1
   fi
   printf '  status: "ok"\n'
   printf '  items:\n'
@@ -96,15 +122,15 @@ appstore_backup() {
 
 appstore_restore() {
   local installed_apps id
-  mi_has mas || mi_install_brew_tool_if_allowed mas mas || { mi_warn "mas missing; skipping App Store restore"; return 0; }
-  if ! appstore_login_ready; then
-    appstore_handle_missing_login "restore"
-    return $?
+  if ! appstore_ensure_mas "restore"; then
+    [ "$MI_APPSTORE_LOGIN" = "skip" ] && return 0
+    return 1
   fi
   if ! mi_mas_capture installed_apps list; then
-    mi_warn "apps: mas list failed; skipping App Store restore"
-    mi_report_event warn apps mas_list_failed "mas list failed; App Store restore was skipped"
-    return 0
+    appstore_handle_missing_login "restore"
+    mi_report_event warn apps mas_list_failed "mas list failed; App Store restore could not continue"
+    [ "$MI_APPSTORE_LOGIN" = "skip" ] && return 0
+    return 1
   fi
   yq e '([.apps[]? | select((type == "!!map") and has("id"))] + [(.apps | select(type == "!!map") | .items[]?) | select((type == "!!map") and has("id"))])[]?.id' "$MI_INVENTORY" 2>/dev/null | while IFS= read -r id; do
     [ -n "$id" ] && [ "$id" != "null" ] || continue
@@ -118,11 +144,13 @@ appstore_restore() {
 }
 
 appstore_doctor() {
-  if mi_has mas; then
-    if appstore_login_ready; then
-      mi_info "appstore: signed in"
-    else
-      mi_warn "appstore: mas is installed but not signed in"
-    fi
+  if ! mi_has mas; then
+    mi_warn "appstore: mas missing"
+    return 0
+  fi
+  if appstore_access_ready; then
+    mi_info "appstore: mas list succeeded"
+  else
+    mi_warn "appstore: mas is installed but App Store access is unavailable"
   fi
 }

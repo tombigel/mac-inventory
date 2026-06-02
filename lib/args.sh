@@ -207,7 +207,7 @@ mi_set_long_option() {
     --section) MI_SECTIONS="${MI_SECTIONS}${MI_SECTIONS:+
 }$value" ;;
     --format)
-      case "$value" in table|yaml|json) MI_FORMAT="$value" ;; *) mi_error "--format expects table, yaml, or json"; return 2 ;; esac
+      case "$value" in table|yaml|json|md) MI_FORMAT="$value" ;; *) mi_error "--format expects table, yaml, json, or md"; return 2 ;; esac
       ;;
     --installed-only) MI_INSTALLED_ONLY="true" ;;
     --missing-only) MI_MISSING_ONLY="true" ;;
