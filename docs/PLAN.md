@@ -112,7 +112,7 @@ Use two YAML files:
 - Config: source enablement, restore policy, matching policy, dotfile allowlist.
 - Inventory: generated machine state.
 
-Inventory includes host metadata, normalized currently installed App Store apps with matched paths when available, Homebrew taps/top-level formulae/casks, npm/pip/pipx packages, Oh My Zsh state, Xcode and Command Line Tools state, explicit allowlisted dotfiles that exist at backup time, and manual apps with optional Homebrew cask candidates. Homebrew casks keep the installable cask token and may include matched app display name, path, and app version for reports.
+Inventory includes host metadata, normalized currently installed App Store apps with matched paths when available, Homebrew taps/top-level formulae/casks, npm/pip/pipx packages, Oh My Zsh state, Xcode and Command Line Tools state, explicit allowlisted dotfiles that exist at backup time, and manual apps with optional Homebrew cask candidates. App-like restore rows include stable refs such as `appstore:<id>`, `brew_cask:<cask>`, and `manual:<bundle_id>` so commands can target them safely. Homebrew casks keep the installable cask token and may include matched app display name, path, and app version for reports.
 
 Local and iCloud backups also generate `backup-list.md` and `README.md` next to `mac-setup.yml`. The list is derived from the YAML snapshot and must not include copied dotfile contents, secrets, or raw command output. The README contains restore instructions and a backup folder file map.
 
@@ -125,6 +125,7 @@ Manual app matching:
 - `all`: accept all candidates, add casks, and remove matched apps from `manual_apps`.
 - Restore prompts to install recorded `brew_cask_candidate` values for manual apps by default; non-interactive restore reports them unless `--yes` is passed.
 - Non-interactive `ask` behaves like `never` unless `--yes` is set, then it behaves like `all`.
+- `ignore`/`unignore` toggle app-like entries without deleting them. Ignored rows stay visible in the snapshot and Markdown list, are persisted through `restore.ignored_apps` config refs, and are skipped during restore.
 
 Safety rules:
 

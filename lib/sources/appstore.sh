@@ -187,6 +187,7 @@ EOF
     fi
     mi_verbose "apps: recording mas app id=$id name=${output_name:-unknown}"
     printf '    - id: %s\n' "$(mi_yaml_scalar "$id")"
+    printf '      ref: %s\n' "$(mi_yaml_scalar "$(mi_appstore_ref "$id")")"
     printf '      name: %s\n' "$(mi_yaml_scalar "$output_name")"
     printf '      path: %s\n' "$(mi_yaml_scalar "$output_path")"
     printf '      version: %s\n' "$(mi_yaml_scalar "$output_version")"
@@ -217,7 +218,7 @@ appstore_backup() {
 }
 
 appstore_restore() {
-  local installed_apps id
+  local installed_apps rows id ref name ignored
   if ! appstore_ensure_mas "restore"; then
     [ "$MI_APPSTORE_LOGIN" = "skip" ] && return 0
     return 1
@@ -228,8 +229,19 @@ appstore_restore() {
     [ "$MI_APPSTORE_LOGIN" = "skip" ] && return 0
     return 1
   fi
-  yq e '([.apps[]? | select((type == "!!map") and has("id"))] + [(.apps | select(type == "!!map") | .items[]?) | select((type == "!!map") and has("id"))])[]?.id' "$MI_INVENTORY" 2>/dev/null | while IFS= read -r id; do
+  rows="$(yq e -r '
+    ([.apps[]? | select((type == "!!map") and has("id"))] + [(.apps | select(type == "!!map") | .items[]?) | select((type == "!!map") and has("id"))])[]? |
+    (.id // "" | tostring) + "|" +
+    (.ref // "" | tostring) + "|" +
+    (.name // "" | tostring) + "|" +
+    (.ignored // false | tostring)
+  ' "$MI_INVENTORY" 2>/dev/null || true)"
+  printf '%s\n' "$rows" | while IFS="|" read -r id ref name ignored; do
     [ -n "$id" ] && [ "$id" != "null" ] || continue
+    if [ "$ignored" = "true" ]; then
+      mi_info "apps: ignored $ref ${name:+($name)}; skipping"
+      continue
+    fi
     mi_validate_identifier "$id" || { mi_warn "invalid App Store id: $id"; continue; }
     if printf '%s\n' "$installed_apps" | awk '{print $1}' | grep -Fxq "$id"; then
       mi_info "apps: $id already installed"

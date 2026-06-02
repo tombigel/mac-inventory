@@ -88,7 +88,7 @@ mi_endpoint_preflight_icloud() {
 mi_endpoint_command_mode() {
   case "$MI_COMMAND" in
     backup) printf '%s\n' "target" ;;
-    restore|list) printf '%s\n' "source" ;;
+    restore|list|ignore|unignore) printf '%s\n' "source" ;;
     *) printf '%s\n' "" ;;
   esac
 }
@@ -192,6 +192,9 @@ mi_endpoint_resolve() {
     source:github)
       MI_EFFECTIVE_SOURCE="github"
       MI_GIST_PULL="true"
+      case "$MI_COMMAND" in
+        ignore|unignore) MI_GIST_PUSH="true" ;;
+      esac
       ;;
     target:local)
       MI_EFFECTIVE_TARGET="local"

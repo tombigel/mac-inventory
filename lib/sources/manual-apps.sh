@@ -88,6 +88,7 @@ manual_apps_backup() {
       continue
     fi
     printf '    - name: %s\n' "$(mi_yaml_scalar "$name")"
+    printf '      ref: %s\n' "$(mi_yaml_scalar "$(mi_manual_app_ref "$bundle_id" "$name" "$app")")"
     printf '      path: %s\n' "$(mi_yaml_scalar "$app")"
     printf '      bundle_id: %s\n' "$(mi_yaml_scalar "$bundle_id")"
     printf '      version: %s\n' "$(mi_yaml_scalar "$version")"
@@ -170,16 +171,22 @@ manual_apps_cask_info_status() {
 }
 
 manual_apps_restore() {
-  local rows name path candidate rc
+  local rows name path candidate ref ignored rc
   rows="$(yq e -r '
     (.manual_apps.apps // [])[]? |
-    (.name // "" | tostring) + "\t" +
-    (.path // "" | tostring) + "\t" +
-    ((.selected_brew_cask | select(. != null and . != "")) // (.brew_cask_candidate | select(. != null and . != "")) // "" | tostring)
+    (.name // "" | tostring) + "|" +
+    (.path // "" | tostring) + "|" +
+    ((.selected_brew_cask | select(. != null and . != "")) // (.brew_cask_candidate | select(. != null and . != "")) // "" | tostring) + "|" +
+    (.ref // "" | tostring) + "|" +
+    (.ignored // false | tostring)
   ' "$MI_INVENTORY" 2>/dev/null || true)"
   rc=0
-  while IFS="$(printf '\t')" read -r name path candidate; do
+  while IFS="|" read -r name path candidate ref ignored; do
     [ -n "$name" ] || continue
+    if [ "$ignored" = "true" ]; then
+      mi_info "manual app: ignored ${ref:-$name} ($name); skipping"
+      continue
+    fi
     if [ -n "$candidate" ]; then
       manual_apps_restore_cask_candidate "$name" "$candidate" || rc=$?
     else

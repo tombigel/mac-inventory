@@ -31,6 +31,16 @@ setup() {
   [[ "$output" == *"dry-run: would write setup snapshot"* ]]
 }
 
+@test "ignore and unignore require exactly one app ref or token" {
+  run "$BIN" ignore
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"ignore requires a ref or token"* ]]
+
+  run "$BIN" ignore one two
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"unexpected positional argument: two"* ]]
+}
+
 @test "generates config file" {
   run "$BIN" config generate -o generated.yml
   [ "$status" -eq 0 ]
@@ -38,6 +48,7 @@ setup() {
   grep -q "oh_my_zsh: true" generated.yml
   grep -q "xcode: true" generated.yml
   grep -q "check_manual_brew: true" generated.yml
+  grep -q "ignored_apps: \\[\\]" generated.yml
   grep -q "~/.editorconfig" generated.yml
   grep -q "~/.config/nvim/init.lua" generated.yml
   grep -q "~/.config/lazygit/config.yml" generated.yml
@@ -125,7 +136,7 @@ YAML
   grep -q "path: \"$app_root/Visual Studio Code.app\"" mac-setup.yml
   grep -q 'app_version: "1.2.3"' mac-setup.yml
   grep -q 'name: "typescript"' mac-setup.yml
-  grep -q '| visual-studio-code | Visual Studio Code | '"$app_root"'/Visual Studio Code.app | 1.0 |' backup-list.md
+  grep -q '| brew_cask:visual-studio-code | visual-studio-code | Visual Studio Code | '"$app_root"'/Visual Studio Code.app | 1.0 | false |' backup-list.md
 }
 
 @test "backup shows section progress by default and quiet suppresses it" {
@@ -223,10 +234,11 @@ YAML
   run env MI_APP_DIRS="$app_root" "$BIN" backup --target local --skip-report --apps=true --brew=false --npm=false --pip=false --pipx=false --oh-my-zsh=false --xcode=false --dotfiles=false --manual-apps=false
   [ "$status" -eq 0 ]
   grep -q 'id: "100"' mac-setup.yml
+  grep -q 'ref: "appstore:100"' mac-setup.yml
   grep -q "path: \"$app_root/Current App.app\"" mac-setup.yml
   ! grep -q 'id: "200"' mac-setup.yml
   [ "$(grep -c 'id: "100"' mac-setup.yml)" -eq 1 ]
-  grep -q '| 100 | Current App | '"$app_root"'/Current App.app | 1.2.3 |' backup-list.md
+  grep -q '| appstore:100 | 100 | Current App | '"$app_root"'/Current App.app | 1.2.3 | false |' backup-list.md
 }
 
 @test "appstore backup uses matched local bundle name and version" {
@@ -245,8 +257,8 @@ YAML
   grep -q 'name: "Keynote"' mac-setup.yml
   grep -q "path: \"$app_root/Keynote.app\"" mac-setup.yml
   grep -q 'version: "14.5"' mac-setup.yml
-  grep -q '| 361285480 | Keynote Creator Studio | '"$app_root"'/Keynote Creator Studio.app | 15.2.1 |' backup-list.md
-  grep -q '| 409183694 | Keynote | '"$app_root"'/Keynote.app | 14.5 |' backup-list.md
+  grep -q '| appstore:361285480 | 361285480 | Keynote Creator Studio | '"$app_root"'/Keynote Creator Studio.app | 15.2.1 | false |' backup-list.md
+  grep -q '| appstore:409183694 | 409183694 | Keynote | '"$app_root"'/Keynote.app | 14.5 | false |' backup-list.md
 }
 
 @test "appstore verbose builds installed app index once across multiple mas rows" {
@@ -307,9 +319,22 @@ YAML
   run env MI_APP_DIRS="$app_root" "$BIN" backup --target local --skip-report --apps=false --brew=false --npm=false --pip=false --pipx=false --oh-my-zsh=false --xcode=false --dotfiles=false --manual-apps=true --manual-brew-match=never
   [ "$status" -eq 0 ]
   grep -q 'name: "Candidate App"' mac-setup.yml
+  grep -q 'ref: "manual:com.example.candidate"' mac-setup.yml
   grep -q 'brew_cask_candidate: "candidate-app"' mac-setup.yml
   grep -q 'selected_brew_cask: ""' mac-setup.yml
-  grep -q '| Candidate App | '"$app_root"'/Candidate App.app | 5.0 | candidate-app |' backup-list.md
+  grep -q '| manual:com.example.candidate | Candidate App | '"$app_root"'/Candidate App.app | 5.0 | candidate-app | false |' backup-list.md
+}
+
+@test "manual apps without bundle ids get hashed refs" {
+  app_root="$BATS_TEST_TMPDIR/Applications"
+  mkdir -p "$app_root"
+  make_test_app "$app_root" "No Bundle App" "" "1.0" false
+  mock_command brew 'while [ "$1" = "env" ] || [ "${1#HOMEBREW_}" != "$1" ]; do shift; done; case "$1 $2 $3" in "list --cask ") : ;; "search --casks /.*/") : ;; *) exit 0 ;; esac'
+
+  run env MI_APP_DIRS="$app_root" "$BIN" backup --target local --skip-report --apps=false --brew=false --npm=false --pip=false --pipx=false --oh-my-zsh=false --xcode=false --dotfiles=false --manual-apps=true --manual-brew-match=never
+  [ "$status" -eq 0 ]
+  grep -q 'name: "No Bundle App"' mac-setup.yml
+  grep -q 'ref: "manual:no-bundle-app-' mac-setup.yml
 }
 
 @test "manual apps skip cask candidates that brew info cannot resolve" {
@@ -322,7 +347,7 @@ YAML
   [ "$status" -eq 0 ]
   grep -q 'name: "Falcon"' mac-setup.yml
   grep -q 'brew_cask_candidate: ""' mac-setup.yml
-  grep -q '| Falcon | '"$app_root"'/Falcon.app | 1.0 |  |' backup-list.md
+  grep -q '| manual:com.example.falcon | Falcon | '"$app_root"'/Falcon.app | 1.0 |  | false |' backup-list.md
 }
 
 @test "manual apps skip deprecated cask candidates" {
@@ -348,6 +373,7 @@ YAML
   [ "$status" -eq 0 ]
   ! grep -q 'Migrate App' mac-setup.yml
   grep -q 'name: "migrate-app"' mac-setup.yml
+  grep -q 'ref: "brew_cask:migrate-app"' mac-setup.yml
   grep -q 'version: "matched-manual-app"' mac-setup.yml
   grep -q 'display_name: "Migrate App"' mac-setup.yml
   grep -q "path: \"$app_root/Migrate App.app\"" mac-setup.yml
@@ -367,6 +393,127 @@ YAML
   run "$BIN" backup --target local --appstore-login=skip --apps=true --brew=false --npm=false --pip=false --pipx=false --oh-my-zsh=false --xcode=false --dotfiles=false --manual-apps=false
   [ "$status" -eq 0 ]
   grep -q 'status: "skipped_mas_list_failed"' mac-setup.yml
+}
+
+@test "ignore marks appstore ref and unignore clears it" {
+  command -v yq >/dev/null 2>&1 || skip "yq is required for ignore edits"
+  cat >snapshot.yml <<'YAML'
+version: 1
+apps:
+  status: ok
+  items:
+    - id: "100"
+      ref: "appstore:100"
+      name: "Current App"
+      path: "/Applications/Current App.app"
+      version: "1.0"
+YAML
+
+  run "$BIN" ignore appstore:100 --source local --inventory snapshot.yml --config config.yml --skip-report
+  [ "$status" -eq 0 ]
+  grep -q 'ignored: true' snapshot.yml
+  grep -q 'ignored_at:' snapshot.yml
+  grep -q 'ref: appstore:100' config.yml
+
+  run "$BIN" unignore appstore:100 --source local --inventory snapshot.yml --config config.yml --skip-report
+  [ "$status" -eq 0 ]
+  grep -q 'ignored: false' snapshot.yml
+  ! grep -q 'ignored_at:' snapshot.yml
+  ! grep -q 'ref: appstore:100' config.yml
+}
+
+@test "ignore by legacy manual token adds ref and future backup reapplies config" {
+  command -v yq >/dev/null 2>&1 || skip "yq is required for ignore edits"
+  cat >snapshot.yml <<'YAML'
+version: 1
+manual_apps:
+  apps:
+    - name: "Legacy App"
+      path: "/Applications/Legacy App.app"
+      bundle_id: "com.example.legacy"
+      version: "1.0"
+      brew_cask_candidate: ""
+      selected_brew_cask: ""
+YAML
+
+  run "$BIN" ignore "Legacy App" --source local --inventory snapshot.yml --config config.yml --skip-report
+  [ "$status" -eq 0 ]
+  grep -q 'ref: manual:com.example.legacy' snapshot.yml
+  grep -q 'ignored: true' snapshot.yml
+  grep -q 'ref: manual:com.example.legacy' config.yml
+
+  app_root="$BATS_TEST_TMPDIR/Applications"
+  mkdir -p "$app_root"
+  make_test_app "$app_root" "Legacy App" "com.example.legacy" "2.0" false
+  mock_command brew 'while [ "$1" = "env" ] || [ "${1#HOMEBREW_}" != "$1" ]; do shift; done; case "$1 $2 $3" in "list --cask ") : ;; "search --casks /.*/") : ;; *) exit 0 ;; esac'
+  run env MI_APP_DIRS="$app_root" "$BIN" backup --target local --inventory new.yml --config config.yml --skip-report --apps=false --brew=false --npm=false --pip=false --pipx=false --oh-my-zsh=false --xcode=false --dotfiles=false --manual-apps=true
+  [ "$status" -eq 0 ]
+  grep -q 'ref: "manual:com.example.legacy"' new.yml
+  grep -q 'ignored: true' new.yml
+}
+
+@test "ignore rejects ambiguous app tokens without editing" {
+  command -v yq >/dev/null 2>&1 || skip "yq is required for ignore edits"
+  cat >snapshot.yml <<'YAML'
+version: 1
+apps:
+  status: ok
+  items:
+    - id: "100"
+      ref: "appstore:100"
+      name: "Same App"
+      path: "/Applications/Same App.app"
+      version: "1.0"
+manual_apps:
+  apps:
+    - name: "Same App"
+      ref: "manual:com.example.same"
+      path: "/Users/me/Applications/Same App.app"
+      bundle_id: "com.example.same"
+      version: "1.0"
+YAML
+
+  run "$BIN" ignore "Same App" --source local --inventory snapshot.yml --config config.yml --skip-report
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"multiple app entries matched"* ]]
+  ! grep -q 'ignored:' snapshot.yml
+  [ ! -f config.yml ]
+}
+
+@test "restore skips ignored appstore brew cask and manual app rows" {
+  command -v yq >/dev/null 2>&1 || skip "yq is required for restore"
+  cat >snapshot.yml <<'YAML'
+version: 1
+apps:
+  status: ok
+  items:
+    - id: "100"
+      ref: "appstore:100"
+      name: "Ignored Store"
+      ignored: true
+brew:
+  taps: []
+  formulae: []
+  casks:
+    - name: "ignored-cask"
+      ref: "brew_cask:ignored-cask"
+      display_name: "Ignored Cask"
+      ignored: true
+manual_apps:
+  apps:
+    - name: "Ignored Manual"
+      ref: "manual:com.example.ignored"
+      bundle_id: "com.example.ignored"
+      ignored: true
+YAML
+  mock_command mas 'if [ "$1" = "list" ]; then :; else echo "unexpected mas $*" >&2; exit 1; fi'
+  mock_command brew 'while [ "$1" = "env" ] || [ "${1#HOMEBREW_}" != "$1" ]; do shift; done; case "$1 $2" in "tap ") : ;; *) echo "unexpected brew $*" >&2; exit 1 ;; esac'
+
+  run "$BIN" restore --source local --inventory snapshot.yml --skip-prepare=true --skip-report --apps=true --brew=true --npm=false --pip=false --pipx=false --oh-my-zsh=false --xcode=false --dotfiles=false --manual-apps=true
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ignored appstore:100"* ]]
+  [[ "$output" == *"ignored brew_cask:ignored-cask"* ]]
+  [[ "$output" == *"ignored manual:com.example.ignored"* ]]
 }
 
 @test "skip-report suppresses final process report" {
@@ -409,4 +556,36 @@ YAML
   [[ "$output" == *"| git | 2.0 |"* ]]
   [[ "$output" == *"## npm Globals"* ]]
   [[ "$output" == *"| typescript | 5.0.0 |"* ]]
+}
+
+@test "list markdown shows app refs and ignored state" {
+  command -v yq >/dev/null 2>&1 || skip "yq is required for markdown list rendering"
+  cat >snapshot.yml <<'YAML'
+version: 1
+apps:
+  status: ok
+  items:
+    - id: "100"
+      ref: "appstore:100"
+      name: "Current App"
+      ignored: true
+brew:
+  casks:
+    - name: "visual-studio-code"
+      ref: "brew_cask:visual-studio-code"
+      display_name: "Visual Studio Code"
+      ignored: false
+manual_apps:
+  apps:
+    - name: "Manual App"
+      ref: "manual:com.example.manual"
+      ignored: true
+YAML
+
+  run "$BIN" list --source local --inventory snapshot.yml --format md
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"| Ref | ID | Name | Path | Version | Ignored |"* ]]
+  [[ "$output" == *"| appstore:100 | 100 | Current App |"* ]]
+  [[ "$output" == *"| brew_cask:visual-studio-code | visual-studio-code | Visual Studio Code |"* ]]
+  [[ "$output" == *"| manual:com.example.manual | Manual App |"* ]]
 }

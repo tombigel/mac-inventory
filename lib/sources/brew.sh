@@ -65,6 +65,7 @@ EOF
     mi_verbose "brew: no installed app match for cask $name"
   fi
   printf '    - name: %s\n' "$(mi_yaml_scalar "$name")"
+  printf '      ref: %s\n' "$(mi_yaml_scalar "$(mi_brew_cask_ref "$name")")"
   printf '      version: %s\n' "$(mi_yaml_scalar "$version")"
   printf '      display_name: %s\n' "$(mi_yaml_scalar "$display_name")"
   printf '      path: %s\n' "$(mi_yaml_scalar "$path")"
@@ -72,7 +73,7 @@ EOF
 }
 
 brew_restore() {
-  local installed_taps tap name
+  local installed_taps tap name ref display_name ignored cask_rows
   mi_has brew || { mi_warn "brew missing; skipping Homebrew restore"; return 0; }
   mi_brew_capture installed_taps tap || installed_taps=""
   yq e '.brew.taps[]?' "$MI_INVENTORY" 2>/dev/null | while IFS= read -r tap; do
@@ -89,8 +90,19 @@ brew_restore() {
       mi_brew_run install "$name"
     fi
   done
-  yq e '.brew.casks[]?.name' "$MI_INVENTORY" 2>/dev/null | while IFS= read -r name; do
+  cask_rows="$(yq e -r '
+    (.brew.casks // [])[]? |
+    (.name // "" | tostring) + "|" +
+    (.ref // "" | tostring) + "|" +
+    (.display_name // "" | tostring) + "|" +
+    (.ignored // false | tostring)
+  ' "$MI_INVENTORY" 2>/dev/null || true)"
+  printf '%s\n' "$cask_rows" | while IFS="|" read -r name ref display_name ignored; do
     [ -n "$name" ] && [ "$name" != "null" ] || continue
+    if [ "$ignored" = "true" ]; then
+      mi_info "brew cask: ignored ${ref:-$name} ${display_name:+($display_name)}; skipping"
+      continue
+    fi
     mi_validate_identifier "$name" || { mi_warn "invalid cask: $name"; continue; }
     if mi_brew_capture cask_check list --cask "$name" && [ "$MI_SKIP_EXISTING" = "true" ]; then
       mi_info "brew cask: $name already installed"

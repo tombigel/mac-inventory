@@ -9,7 +9,7 @@ mi_report_should_emit() {
   [ -n "${MI_REPORT:-}" ] && return 0
   [ "${MI_QUIET:-false}" = "true" ] && return 1
   case "${MI_COMMAND:-}" in
-    backup|restore|prepare|continue|gist) return 0 ;;
+    backup|restore|prepare|continue|gist|ignore|unignore) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -121,6 +121,9 @@ mi_report_default_summary_next_step() {
       ;;
     gist)
       printf 'Run list or restore to inspect the pulled snapshot, or backup to update it.'
+      ;;
+    ignore|unignore)
+      printf 'Run list --format md to inspect ignored app refs before restore.'
       ;;
     *)
       printf 'Done.'

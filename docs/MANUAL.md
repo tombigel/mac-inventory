@@ -134,6 +134,34 @@ Restore runs `prepare` first unless `--skip-prepare=true` is passed.
 
 Mac App Store backup and restore require `mas` plus a signed-in App Store app when the App Store source is enabled. The CLI never asks for Apple ID credentials and cannot automate Apple sign-in. By default, it tries to make `mas` usable and then fails until App Store sign-in is available. Use `--apps=false` or `--appstore-login=skip` only when you explicitly want to omit App Store apps.
 
+### `ignore`
+
+Mark one app-like snapshot entry as ignored while keeping it recorded.
+
+```bash
+mac-setup ignore brew_cask:visual-studio-code
+mac-setup ignore appstore:123456789
+mac-setup ignore "Visual Studio Code" --source local -i mac-setup.yml
+mac-setup ignore brew_cask:visual-studio-code --dry-run
+```
+
+Ignored entries remain visible in `mac-setup.yml`, `backup-list.md`, and `list --format md`, but restore skips them. The command edits the selected source snapshot: iCloud by default, local when `--source local` or `--inventory` is passed, and GitHub Gist when `--source github -g <id>` is passed. GitHub source edits pull before changing the local snapshot and push after a successful non-dry-run edit.
+
+The command first matches exact `ref` values, then exact or normalized app names, IDs, bundle IDs, cask names, and app path basenames. If no entry matches, it exits `1`. If multiple entries match, it exits `2`, prints the candidate refs, and changes nothing.
+
+Dry-run prints the entry and files that would be changed without writing the snapshot, config, backup-list, README, or Gist.
+
+### `unignore`
+
+Clear an ignored app rule.
+
+```bash
+mac-setup unignore brew_cask:visual-studio-code
+mac-setup unignore appstore:123456789 --source local -i mac-setup.yml
+```
+
+`unignore` clears the snapshot `ignored` marker and removes the persisted config rule for the matched ref.
+
 ### `prepare`
 
 Check and install clean-Mac prerequisites before restore.
@@ -262,7 +290,7 @@ iCloud Drive folder name. Default: `Mac Setup Snapshot`.
 
 iCloud Drive root path. Default: `~/Library/Mobile Documents/com~apple~CloudDocs`.
 
-The iCloud endpoint stores `mac-setup.yml`, `backup-list.md`, `README.md`, optional `mac-setup.config.yml`, copied `files/`, and `metadata.yml` in one bundle folder. Before overwriting an existing bundle, backup moves current bundle files into `history/YYYYMMDDTHHMMSSZ/`.
+The iCloud endpoint stores `mac-setup.yml`, `backup-list.md`, `README.md`, optional `mac-setup.config.yml`, copied `files/`, and `metadata.yml` in one bundle folder. Before overwriting an existing bundle, backup moves current bundle files into `history/YYYYMMDDTHHMMSSZ/`. `ignore` and `unignore` update the selected source in place and regenerate the readable files for local and iCloud snapshots.
 
 If iCloud Drive is missing or inaccessible, interactive commands offer local/GitHub fallback where possible. Non-interactive commands fail clearly unless a non-iCloud endpoint is explicit.
 
@@ -758,6 +786,9 @@ backup:
 
 restore:
   appstore_login: prompt
+  ignored_apps:
+    - ref: "brew_cask:visual-studio-code"
+      name: "Visual Studio Code"
   dotfiles_mode: skip_existing
   oh_my_zsh_mode: install_if_missing
   xcode:
@@ -771,7 +802,7 @@ reports:
   skip: false
 ```
 
-CLI flags override config defaults for the current run.
+CLI flags override config defaults for the current run. `ignore` adds refs to `restore.ignored_apps`; backup reapplies those refs to matching app-like rows so future snapshots keep the same restore exclusions visible.
 
 ## Setup Snapshot File
 
@@ -792,7 +823,11 @@ updated_at: "..."
 host: {}
 apps:
   status: ok
-  items: []
+  items:
+    - id: "123456789"
+      ref: "appstore:123456789"
+      name: "Example App"
+      ignored: false
 manual_apps: {}
 brew: {}
 npm: {}
@@ -804,6 +839,15 @@ dotfiles: {}
 ```
 
 Generated setup snapshot files and copied dotfiles are ignored by Git by default.
+
+App-like restore rows use stable `ref` values:
+
+- `appstore:<id>` for Mac App Store rows.
+- `brew_cask:<cask>` for Homebrew cask rows.
+- `manual:<bundle_id>` for manual app rows with bundle IDs.
+- `manual:<normalized-name>-<short-hash>` for manual app rows without bundle IDs.
+
+Ignored rows keep their normal fields plus `ignored: true` and `ignored_at`. They remain in list output and generated Markdown, but restore skips them.
 
 ## Dotfiles
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-MI_VERSION="0.5.0"
+MI_VERSION="0.6.0"
 
 mi_info() {
   if [ "${MI_QUIET:-false}" != "true" ]; then
@@ -289,6 +289,8 @@ Usage:
 Commands:
   backup             Create or update a setup snapshot
   restore            Restore from a setup snapshot
+  ignore             Keep an app in the snapshot but skip it during restore
+  unignore           Restore an ignored app entry again
   list               List snapshot sections
   doctor             Check local readiness
   prepare            Install/check prerequisites before restore

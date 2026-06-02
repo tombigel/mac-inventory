@@ -16,6 +16,8 @@
 - Added default `backup-list.md` generation for local and iCloud backups.
 - Added default backup-folder `README.md` generation with restore instructions for local and iCloud backups.
 - Added richer `backup --verbose` diagnostics for command captures, app indexing, App Store parsing, and manual app matching.
+- Added stable app refs for App Store apps, Homebrew casks, and manual apps.
+- Added `ignore` and `unignore` commands to keep app entries in the snapshot while excluding them from restore.
 
 ### Changed
 
@@ -30,6 +32,8 @@
 - Changed generated config and defaults so manual app Homebrew cask matching is enabled by default.
 - Changed App Store backup to normalize and de-duplicate `mas list` output before writing the snapshot.
 - Changed manual app backup to omit apps already represented by App Store receipts or installed Homebrew casks.
+- Changed readable app lists to show stable refs and ignored state for app-like restore rows.
+- Changed backup to reapply persisted ignored-app config rules to fresh snapshots.
 
 ### Fixed
 

@@ -68,6 +68,7 @@ mi_args_init() {
   MI_SKIP_REPORT="false"
   MI_SECTIONS=""
   MI_DOTFILES_PATHS=""
+  MI_IGNORE_TOKEN=""
 }
 
 mi_parse_args() {
@@ -120,6 +121,10 @@ mi_set_command_token() {
   fi
   if { [ "$MI_COMMAND" = "config" ] || [ "$MI_COMMAND" = "gist" ]; } && [ -z "$MI_SUBCOMMAND" ]; then
     MI_SUBCOMMAND="$token"
+    return 0
+  fi
+  if { [ "$MI_COMMAND" = "ignore" ] || [ "$MI_COMMAND" = "unignore" ]; } && [ -z "$MI_IGNORE_TOKEN" ]; then
+    MI_IGNORE_TOKEN="$token"
     return 0
   fi
   mi_error "unexpected positional argument: $token"

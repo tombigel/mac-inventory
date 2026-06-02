@@ -183,6 +183,7 @@ mi_inventory_backup() {
     tmp_dry="$(mktemp "${TMPDIR:-/tmp}/mac-setup-dry.XXXXXX")" || return 1
     mi_verbose "backup: dry-run inventory temp file $tmp_dry"
     mi_inventory_emit_backup "$tmp_dry" || { rm -f "$tmp_dry"; return 1; }
+    mi_ignore_apply_config_to_inventory "$tmp_dry" || { rm -f "$tmp_dry"; return 1; }
     cat "$tmp_dry"
     mi_inventory_write_backup_list "$tmp_dry"
     mi_inventory_write_backup_readme "$tmp_dry"
@@ -194,6 +195,7 @@ mi_inventory_backup() {
   tmp="$(mktemp "${MI_INVENTORY}.tmp.XXXXXX")" || return 1
   mi_verbose "backup: inventory temp file $tmp"
   mi_inventory_emit_backup "$tmp" || { rm -f "$tmp"; return 1; }
+  mi_ignore_apply_config_to_inventory "$tmp" || { rm -f "$tmp"; return 1; }
   mv "$tmp" "$MI_INVENTORY"
   mi_info "wrote $MI_INVENTORY"
   mi_inventory_write_backup_list "$MI_INVENTORY"
@@ -552,10 +554,10 @@ mi_inventory_list_md() {
     ' "$MI_INVENTORY"
   fi
 
-  mi_inventory_md_section_selected apps && mi_inventory_md_table "App Store Apps" "| ID | Name | Path | Version |
-| --- | --- | --- | --- |" '
+  mi_inventory_md_section_selected apps && mi_inventory_md_table "App Store Apps" "| Ref | ID | Name | Path | Version | Ignored |
+| --- | --- | --- | --- | --- | --- |" '
     (.apps.items // .apps // [])[]? |
-    "| " + (.id // "" | tostring) + " | " + (.name // "" | tostring) + " | " + (.path // "" | tostring) + " | " + (.version // "" | tostring) + " |"
+    "| " + (.ref // "" | tostring) + " | " + (.id // "" | tostring) + " | " + (.name // "" | tostring) + " | " + (.path // "" | tostring) + " | " + (.version // "" | tostring) + " | " + (.ignored // false | tostring) + " |"
   '
 
   if mi_inventory_md_section_selected brew; then
@@ -564,10 +566,10 @@ mi_inventory_list_md() {
       (.brew.formulae // [])[]? |
       "| " + (.name // "" | tostring) + " | " + (.version // "" | tostring) + " |"
     '
-    mi_inventory_md_table "Homebrew Casks" "| Cask | App | Path | Version |
-| --- | --- | --- | --- |" '
+    mi_inventory_md_table "Homebrew Casks" "| Ref | Cask | App | Path | Version | Ignored |
+| --- | --- | --- | --- | --- | --- |" '
       (.brew.casks // [])[]? |
-      "| " + (.name // "" | tostring) + " | " + (.display_name // "" | tostring) + " | " + (.path // "" | tostring) + " | " + (.version // "" | tostring) + " |"
+      "| " + (.ref // "" | tostring) + " | " + (.name // "" | tostring) + " | " + (.display_name // "" | tostring) + " | " + (.path // "" | tostring) + " | " + (.version // "" | tostring) + " | " + (.ignored // false | tostring) + " |"
     '
   fi
 
@@ -615,10 +617,10 @@ mi_inventory_list_md() {
     "| " + (.path // "" | tostring) + " | " + (.exists // "" | tostring) + " | " + (.backup_path // "" | tostring) + " |"
   '
 
-  mi_inventory_md_section_selected manual_apps && mi_inventory_md_table "Manual Apps" "| Name | Path | Version | Brew Cask |
-| --- | --- | --- | --- |" '
+  mi_inventory_md_section_selected manual_apps && mi_inventory_md_table "Manual Apps" "| Ref | Name | Path | Version | Brew Cask | Ignored |
+| --- | --- | --- | --- | --- | --- |" '
     (.manual_apps.apps // [])[]? |
-    "| " + (.name // "" | tostring) + " | " + (.path // "" | tostring) + " | " + (.version // "" | tostring) + " | " + ((.selected_brew_cask | select(. != null and . != "")) // (.brew_cask_candidate | select(. != null and . != "")) // "" | tostring) + " |"
+    "| " + (.ref // "" | tostring) + " | " + (.name // "" | tostring) + " | " + (.path // "" | tostring) + " | " + (.version // "" | tostring) + " | " + ((.selected_brew_cask | select(. != null and . != "")) // (.brew_cask_candidate | select(. != null and . != "")) // "" | tostring) + " | " + (.ignored // false | tostring) + " |"
   '
 }
 
