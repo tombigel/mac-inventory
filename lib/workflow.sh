@@ -283,6 +283,7 @@ mi_workflow_step_check_xcode_cli() {
 }
 
 mi_workflow_step_install_homebrew() {
+  local installer rc
   mi_action_intro "Check Homebrew" "Required to install yq, mas, pipx, and Homebrew inventory items." "/bin/bash homebrew-install.sh" "The installer may prompt for your password."
   if mi_has brew; then
     mi_info "homebrew: found"
@@ -296,7 +297,8 @@ mi_workflow_step_install_homebrew() {
   mi_prompt_yes_no "Install Homebrew now?" "yes" || return 0
   installer="${TMPDIR:-/tmp}/mac-setup-homebrew-install.sh"
   mi_download_installer "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh" "$installer" || return 1
-  mi_run /bin/bash "$installer" || return 1
+  mi_run /bin/bash "$installer" || { rc=$?; rm -f "$installer"; return "$rc"; }
+  rm -f "$installer"
   if [ -x /opt/homebrew/bin/brew ]; then
     eval "$(/opt/homebrew/bin/brew shellenv)"
     mi_info "homebrew: applied /opt/homebrew/bin/brew shellenv for this process"

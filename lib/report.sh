@@ -7,6 +7,7 @@ MI_REPORT_STARTED_EPOCH=""
 mi_report_should_emit() {
   [ "${MI_SKIP_REPORT:-false}" = "true" ] && return 1
   [ -n "${MI_REPORT:-}" ] && return 0
+  [ "${MI_QUIET:-false}" = "true" ] && return 1
   case "${MI_COMMAND:-}" in
     backup|restore|prepare|continue|gist) return 0 ;;
     *) return 1 ;;
@@ -94,6 +95,87 @@ mi_report_render_text() {
   printf '  duration_seconds: %s\n' "$duration"
   printf '  counts: %s\n' "$(mi_report_counts_line)"
   mi_report_events_text
+}
+
+mi_report_default_summary_next_step() {
+  case "$MI_COMMAND" in
+    backup)
+      if [ "$MI_DRY_RUN" = "true" ]; then
+        printf 'Review the dry-run snapshot above. Run without --dry-run when you are ready to write the backup.'
+      else
+        printf 'Review backup-list.md, then run restore --dry-run on the target Mac before a real restore.'
+      fi
+      ;;
+    restore)
+      if [ "$MI_DRY_RUN" = "true" ]; then
+        printf 'Review the dry-run output. Run without --dry-run when you are ready to restore.'
+      else
+        printf 'Review any warnings above and run list --format md if you want to inspect the snapshot again.'
+      fi
+      ;;
+    prepare)
+      printf 'Run restore when you are ready to apply the setup snapshot.'
+      ;;
+    continue)
+      printf 'If more work remains, run status to inspect the resume checklist.'
+      ;;
+    gist)
+      printf 'Run list or restore to inspect the pulled snapshot, or backup to update it.'
+      ;;
+    *)
+      printf 'Done.'
+      ;;
+  esac
+}
+
+mi_report_default_summary_artifacts() {
+  local backup_list backup_readme
+  case "$MI_COMMAND" in
+    backup)
+      if [ "$MI_DRY_RUN" = "true" ]; then
+        printf '  Files written: none (dry-run)\n'
+      else
+        printf '  Snapshot: %s\n' "$MI_INVENTORY"
+        backup_list="$(mi_inventory_backup_list_path 2>/dev/null || true)"
+        backup_readme="$(mi_inventory_backup_readme_path 2>/dev/null || true)"
+        [ -n "$backup_list" ] && printf '  Readable list: %s\n' "$backup_list"
+        [ -n "$backup_readme" ] && printf '  Restore notes: %s\n' "$backup_readme"
+      fi
+      ;;
+    restore)
+      printf '  Snapshot: %s\n' "$MI_INVENTORY"
+      ;;
+    *)
+      printf '  Snapshot: %s\n' "$MI_INVENTORY"
+      ;;
+  esac
+}
+
+mi_report_default_summary_events() {
+  local severity section code message
+  [ -n "${MI_REPORT_EVENTS_FILE:-}" ] && [ -s "$MI_REPORT_EVENTS_FILE" ] || return 0
+  printf '  Warnings/actions:\n'
+  while IFS="$(printf '\t')" read -r severity section code message; do
+    printf '    - %s\n' "$message"
+    if [ "$MI_VERBOSE" = "true" ]; then
+      printf '      source: %s/%s (%s)\n' "$section" "$code" "$severity"
+    fi
+  done <"$MI_REPORT_EVENTS_FILE"
+}
+
+mi_report_render_default_summary() {
+  local rc="$1"
+  local status="completed"
+  [ "$rc" -eq 0 ] || status="stopped with errors"
+  printf '\nMac Setup Snapshot summary\n'
+  printf '  %s %s in %ss.\n' "${MI_COMMAND}${MI_SUBCOMMAND:+ $MI_SUBCOMMAND}" "$status" "$(mi_report_duration_seconds)"
+  printf '  Dry run: %s\n' "$MI_DRY_RUN"
+  mi_report_default_summary_artifacts
+  mi_report_default_summary_events
+  if [ "$MI_VERBOSE" = "true" ]; then
+    printf '  Counts: %s\n' "$(mi_report_counts_line)"
+  fi
+  printf '  Next step: %s\n' "$(mi_report_default_summary_next_step)"
 }
 
 mi_report_render_md() {
@@ -199,7 +281,7 @@ mi_report_finish() {
   [ -n "${MI_REPORT_STARTED_AT:-}" ] || return 0
 
   if [ -z "${MI_REPORT:-}" ]; then
-    mi_report_render_text "$rc"
+    mi_report_render_default_summary "$rc"
   else
     mi_mkdir_parent "$MI_REPORT"
     tmp="$(mktemp "${MI_REPORT}.tmp.XXXXXX")" || {

@@ -10,7 +10,7 @@ mi_info() {
 
 mi_verbose() {
   if [ "${MI_VERBOSE:-false}" = "true" ]; then
-    printf '%s\n' "$*"
+    printf '%s\n' "$*" >&2
   fi
 }
 
@@ -81,6 +81,24 @@ mi_mkdir_parent() {
   [ -d "$dir" ] || mkdir -p "$dir"
 }
 
+mi_cleanup_temp_files() {
+  [ -n "${MI_REPORT_EVENTS_FILE:-}" ] && rm -f -- "$MI_REPORT_EVENTS_FILE"
+  [ -n "${MI_MATCHED_CASKS_FILE:-}" ] && rm -f -- "$MI_MATCHED_CASKS_FILE"
+  [ -n "${MI_APP_INDEX_FILE:-}" ] && rm -f -- "$MI_APP_INDEX_FILE"
+  [ -n "${MI_ACTIVE_RESUME_FILE:-}" ] && rm -f -- "$MI_ACTIVE_RESUME_FILE"
+  MI_REPORT_EVENTS_FILE=""
+  MI_MATCHED_CASKS_FILE=""
+  MI_APP_INDEX_FILE=""
+  MI_ACTIVE_RESUME_FILE=""
+}
+
+mi_cleanup_inventory_temp_files() {
+  [ -n "${MI_MATCHED_CASKS_FILE:-}" ] && rm -f -- "$MI_MATCHED_CASKS_FILE"
+  [ -n "${MI_APP_INDEX_FILE:-}" ] && rm -f -- "$MI_APP_INDEX_FILE"
+  MI_MATCHED_CASKS_FILE=""
+  MI_APP_INDEX_FILE=""
+}
+
 mi_run() {
   if [ "${MI_DRY_RUN:-false}" = "true" ]; then
     printf 'dry-run:'
@@ -115,8 +133,10 @@ mi_command_run() {
   shift
   out="$(mktemp "${TMPDIR:-/tmp}/mac-setup-command-out.XXXXXX")" || return 1
   err="$(mktemp "${TMPDIR:-/tmp}/mac-setup-command-err.XXXXXX")" || { rm -f "$out"; return 1; }
+  mi_verbose "$label starting"
   mi_command_capture_files "$label" "$out" "$err" "$@"
   rc=$?
+  mi_verbose "$label exited with status $rc"
   cat "$out"
   cat "$err" >&2
   rm -f "$out" "$err"
@@ -130,13 +150,16 @@ mi_command_capture() {
   shift 2
   out="$(mktemp "${TMPDIR:-/tmp}/mac-setup-command-out.XXXXXX")" || return 1
   err="$(mktemp "${TMPDIR:-/tmp}/mac-setup-command-err.XXXXXX")" || { rm -f "$out"; return 1; }
+  mi_verbose "$label: starting"
   mi_command_capture_files "$label" "$out" "$err" "$@"
   rc=$?
   if [ "$rc" -eq 0 ]; then
     value="$(cat "$out")"
     printf -v "$__var" '%s' "$value"
+    mi_verbose "$label: captured $(wc -l <"$out" | tr -d ' ') line(s)"
   else
     detail="$(tr '\n' ' ' <"$err" | sed 's/[[:space:]][[:space:]]*/ /g')"
+    mi_verbose "$label: failed with status $rc"
     [ -n "$detail" ] && mi_verbose "$label failed: $detail"
   fi
   rm -f "$out" "$err"

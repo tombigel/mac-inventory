@@ -50,6 +50,7 @@ mi_github_ensure_auth() {
 }
 
 mi_gist_pull() {
+  local tmpdir rc
   [ -n "$MI_GIST_ID" ] || { mi_error "--gist-id is required for gist pull"; return 2; }
 
   if [ "$MI_DRY_RUN" = "true" ]; then
@@ -61,9 +62,9 @@ mi_gist_pull() {
 
   if mi_github_has_gh_auth; then
     tmpdir="$(mktemp -d)"
-    gh gist clone "$MI_GIST_ID" "$tmpdir" >/dev/null
-    mi_gist_copy_pulled_file "$tmpdir/$MI_GIST_FILE" "$MI_INVENTORY"
-    mi_gist_copy_pulled_file "$tmpdir/$MI_GIST_CONFIG_FILE" "$MI_CONFIG"
+    gh gist clone "$MI_GIST_ID" "$tmpdir" >/dev/null || { rc=$?; rm -rf "$tmpdir"; return "$rc"; }
+    mi_gist_copy_pulled_file "$tmpdir/$MI_GIST_FILE" "$MI_INVENTORY" || { rc=$?; rm -rf "$tmpdir"; return "$rc"; }
+    mi_gist_copy_pulled_file "$tmpdir/$MI_GIST_CONFIG_FILE" "$MI_CONFIG" || { rc=$?; rm -rf "$tmpdir"; return "$rc"; }
     rm -rf "$tmpdir"
     return 0
   fi
@@ -140,12 +141,13 @@ mi_gist_push_with_gh() {
 }
 
 mi_gist_push_with_api() {
+  local tmp rc
   token="$(mi_github_token_value)" || { mi_error "GitHub token is required"; return 1; }
   mi_has python3 || { mi_error "python3 is required for token-based Gist upload fallback"; return 1; }
   mi_has curl || { mi_error "curl is required for token-based Gist upload fallback"; return 1; }
 
-  tmp="$(mktemp)"
-  python3 - "$MI_INVENTORY" "$MI_CONFIG" "$MI_GIST_VISIBILITY" >"$tmp" <<'PY'
+  tmp="$(mktemp)" || return 1
+  if ! python3 - "$MI_INVENTORY" "$MI_CONFIG" "$MI_GIST_VISIBILITY" >"$tmp" <<'PY'
 import json
 import os
 import sys
@@ -158,6 +160,11 @@ for path in (inventory, config):
 payload = {"public": visibility == "public", "files": files}
 print(json.dumps(payload))
 PY
+  then
+    rc=$?
+    rm -f "$tmp"
+    return "$rc"
+  fi
 
   if [ -n "$MI_GIST_ID" ]; then
     curl --fail --silent --show-error \
