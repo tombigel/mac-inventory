@@ -78,6 +78,23 @@ setup() {
   [ "$output" = "backups/mac-setup.config.yml|/tmp/icloud-root/Mac Setup Snapshot/mac-setup.config.yml" ]
 }
 
+@test "wizard choice marks the default menu option" {
+  run env PROJECT_ROOT="$PROJECT_ROOT" bash -c '
+    . "$PROJECT_ROOT/lib/common.sh"
+    . "$PROJECT_ROOT/lib/args.sh"
+    . "$PROJECT_ROOT/lib/endpoint.sh"
+    . "$PROJECT_ROOT/lib/inventory.sh"
+    . "$PROJECT_ROOT/lib/wizard.sh"
+    mi_wizard_read() { printf "%s\n" ""; }
+    mi_wizard_choice "Storage" "icloud|iCloud Drive
+local|Local files
+github|GitHub Gist" 2
+  ' 2>&1
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"  * 2. Local files (default)"* ]]
+  [[ "$output" == *"local"* ]]
+}
+
 @test "wizard source args reflect current source booleans" {
   run env PROJECT_ROOT="$PROJECT_ROOT" bash -c '
     . "$PROJECT_ROOT/lib/common.sh"
