@@ -310,9 +310,9 @@ mi_inventory_progress_done() {
   if [ -n "$count" ]; then
     if mi_live_enabled; then
       if [ "$MI_DRY_RUN" = "true" ]; then
-        mi_live_line "$(mi_dry_run_text "dry-run") $(mi_heading Backup) $bar $(mi_success_text done) $(mi_section_display_name "$section") ($count items, ${elapsed}s)"
+        mi_live_line "$(mi_dry_run_text "dry-run") $(mi_heading Backup) $bar $(mi_success_text "done") $(mi_section_display_name "$section") ($count items, ${elapsed}s)"
       else
-        mi_live_line "$(mi_heading Backup) $bar $(mi_success_text done) $(mi_section_display_name "$section") ($count items, ${elapsed}s)"
+        mi_live_line "$(mi_heading Backup) $bar $(mi_success_text "done") $(mi_section_display_name "$section") ($count items, ${elapsed}s)"
       fi
       mi_live_finish
     else
@@ -321,9 +321,9 @@ mi_inventory_progress_done() {
   else
     if mi_live_enabled; then
       if [ "$MI_DRY_RUN" = "true" ]; then
-        mi_live_line "$(mi_dry_run_text "dry-run") $(mi_heading Backup) $bar $(mi_success_text done) $(mi_section_display_name "$section") (${elapsed}s)"
+        mi_live_line "$(mi_dry_run_text "dry-run") $(mi_heading Backup) $bar $(mi_success_text "done") $(mi_section_display_name "$section") (${elapsed}s)"
       else
-        mi_live_line "$(mi_heading Backup) $bar $(mi_success_text done) $(mi_section_display_name "$section") (${elapsed}s)"
+        mi_live_line "$(mi_heading Backup) $bar $(mi_success_text "done") $(mi_section_display_name "$section") (${elapsed}s)"
       fi
       mi_live_finish
     else

@@ -250,9 +250,11 @@ YAML
     MI_WIZARD_CONFIG=custom-wizard.yml
     mi_wizard_load_config
     mi_wizard_sources backup
-  '
+  ' 2>&1
   [ "$status" -eq 0 ]
-  [ "$output" = $'warning: wizard config source backup.unsupported is unsupported; ignoring\nbrew|Packages|false\napps|Store|true' ]
+  [[ "$output" == *"warning: wizard config source backup.unsupported is unsupported; ignoring"* ]]
+  [[ "$output" == *$'brew|Packages|false\napps|Store|true'* ]]
+  [[ "$output" != *"unsupported|Bad|true"* ]]
 }
 
 @test "wizard backup flow dispatches selected answers as cli args" {

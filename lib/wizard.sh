@@ -366,8 +366,10 @@ never|Record candidates but keep apps manual
 all|Accept all Homebrew cask candidates"
   choice="$(mi_wizard_choice "Manual App Matching" "$options" 1)"
   MI_MANUAL_BREW_MATCH="$choice"
+  # shellcheck disable=SC2034
   MI_MANUAL_BREW_MATCH_EXPLICIT="true"
   MI_CHECK_MANUAL_BREW="true"
+  # shellcheck disable=SC2034
   MI_CHECK_MANUAL_BREW_EXPLICIT="true"
 }
 
@@ -566,8 +568,16 @@ mi_wizard_run() {
   fi
 
   case "$flow" in
-    backup) MI_TARGET="$(mi_wizard_default_endpoint backup)"; MI_TARGET_EXPLICIT="true" ;;
-    restore) MI_SOURCE="$(mi_wizard_default_endpoint restore)"; MI_SOURCE_EXPLICIT="true" ;;
+    backup)
+      MI_TARGET="$(mi_wizard_default_endpoint backup)"
+      # shellcheck disable=SC2034
+      MI_TARGET_EXPLICIT="true"
+      ;;
+    restore)
+      MI_SOURCE="$(mi_wizard_default_endpoint restore)"
+      # shellcheck disable=SC2034
+      MI_SOURCE_EXPLICIT="true"
+      ;;
   esac
   mi_wizard_prompt_enabled "$flow" storage && mi_wizard_endpoint_prompt "$flow"
   case "$flow" in
