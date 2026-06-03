@@ -7,8 +7,6 @@ Restore is intentionally additive: it installs, copies, checks, and reports. It 
 ## Usage Docs
 
 - Start with the [manual and full command reference](docs/MANUAL.md) for restore flows, endpoint behavior, config, and safety details.
-- See the [development plan](docs/PLAN.md) for design scope and roadmap.
-- See [AI agent change guidance](docs/AI.md) before changing behavior with a coding assistant.
 
 ## Install
 
@@ -235,6 +233,9 @@ Homebrew calls are run with auto-update, analytics, install cleanup, and env hin
 AI coding agents should read `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`, `docs/AI.md`, and `ai/codex-skill/SKILL.md` before changing behavior. Keep restore additive-only, preserve dry-run safety, avoid `eval` and direct `curl | sh`, do not commit generated snapshots/reports/dotfiles, and use mocked package-manager commands in tests.
 
 ## Development
+
+- See the [development plan](docs/PLAN.md) for design scope and roadmap.
+- See [AI agent change guidance](docs/AI.md) before changing behavior with a coding assistant.
 
 Expected checks:
 
