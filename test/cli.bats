@@ -404,6 +404,20 @@ YAML
   grep -q '| Candidate App | '"$app_root"'/Candidate App.app | 5.0 | candidate-app | false | manual:com.example.candidate |' backup-list.md
 }
 
+@test "manual apps ask mode warns when it cannot prompt without a tty" {
+  app_root="$BATS_TEST_TMPDIR/Applications"
+  mkdir -p "$app_root"
+  make_test_app "$app_root" "Prompt App" "com.example.prompt" "1.0" false
+  mock_command brew 'while [ "$1" = "env" ] || [ "${1#HOMEBREW_}" != "$1" ]; do shift; done; case "$1 $2 $3" in "list --cask ") : ;; "search --casks /.*/") echo prompt-app ;; *) exit 0 ;; esac'
+
+  run env MI_APP_DIRS="$app_root" "$BIN" backup --target local --skip-report --apps=false --brew=false --npm=false --pip=false --pipx=false --oh-my-zsh=false --xcode=false --dotfiles=false --manual-apps=true --manual-brew-match=ask
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"cannot ask about Homebrew cask prompt-app for Prompt App because stdin is not a TTY"* ]]
+  grep -q 'name: "Prompt App"' mac-setup.backup.yml
+  grep -q 'brew_cask_candidate: "prompt-app"' mac-setup.backup.yml
+  grep -q 'selected_brew_cask: ""' mac-setup.backup.yml
+}
+
 @test "manual apps without bundle ids get hashed refs" {
   app_root="$BATS_TEST_TMPDIR/Applications"
   mkdir -p "$app_root"

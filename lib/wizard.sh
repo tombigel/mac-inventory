@@ -518,7 +518,11 @@ $(mi_wizard_args_for_flow "$flow")
 EOF
   mi_ux_line ""
   mi_ux_line "$(mi_muted "Running: ${MI_PROGRAM_NAME:-mac-setup} ${args[*]}")"
-  "$0" "${args[@]}"
+  if [ -r /dev/tty ]; then
+    "$0" "${args[@]}" </dev/tty
+  else
+    "$0" "${args[@]}"
+  fi
 }
 
 mi_wizard_args_for_flow() {

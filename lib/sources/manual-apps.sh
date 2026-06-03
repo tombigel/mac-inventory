@@ -69,10 +69,18 @@ manual_apps_backup() {
         case "$MI_MANUAL_BREW_MATCH" in
           all) selected="$cask" ;;
           ask)
-            if [ "$MI_INTERACTIVE" != "true" ] && [ "$MI_YES" = "true" ]; then
+            if [ "$MI_YES" = "true" ]; then
               selected="$cask"
-            elif [ "$MI_INTERACTIVE" = "true" ] && mi_prompt_yes_no "Use Homebrew cask $cask for $name?" "no"; then
-              selected="$cask"
+            elif [ "$MI_NO" = "true" ]; then
+              :
+            elif [ "$MI_INTERACTIVE" = "true" ]; then
+              if [ -t 0 ]; then
+                if mi_prompt_yes_no "Use Homebrew cask $cask for $name?" "no"; then
+                  selected="$cask"
+                fi
+              else
+                mi_warn "manual_apps: cannot ask about Homebrew cask $cask for $name because stdin is not a TTY; recording candidate without converting"
+              fi
             fi
             ;;
         esac
