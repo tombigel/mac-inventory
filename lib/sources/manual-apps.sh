@@ -75,7 +75,7 @@ manual_apps_backup() {
               :
             elif [ "$MI_INTERACTIVE" = "true" ]; then
               if mi_prompt_available; then
-                if mi_prompt_yes_no "Use Homebrew cask $cask for $name?" "no"; then
+                if mi_prompt_yes_no "Use Homebrew cask $cask for $name?" "yes"; then
                   selected="$cask"
                 fi
               else
