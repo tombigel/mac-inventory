@@ -18,10 +18,26 @@ mi_args_init() {
   MI_INVENTORY_EXPLICIT="false"
   MI_CHECK_MANUAL_BREW_EXPLICIT="false"
   MI_MANUAL_BREW_MATCH_EXPLICIT="false"
+  MI_APPS_EXPLICIT="false"
+  MI_BREW_EXPLICIT="false"
+  MI_NPM_EXPLICIT="false"
+  MI_PIP_EXPLICIT="false"
+  MI_PIPX_EXPLICIT="false"
+  MI_OH_MY_ZSH_EXPLICIT="false"
+  MI_XCODE_EXPLICIT="false"
+  MI_DOTFILES_EXPLICIT="false"
+  MI_MANUAL_APPS_EXPLICIT="false"
   MI_TARGET=""
   MI_SOURCE=""
   MI_TARGET_EXPLICIT="false"
   MI_SOURCE_EXPLICIT="false"
+  MI_RESUME_FILE_EXPLICIT="false"
+  MI_INSTALL_MISSING_TOOLS_EXPLICIT="false"
+  MI_APPSTORE_LOGIN_EXPLICIT="false"
+  MI_COMMAND_TIMEOUT_EXPLICIT="false"
+  MI_REPORT_EXPLICIT="false"
+  MI_REPORT_FORMAT_EXPLICIT="false"
+  MI_SKIP_REPORT_EXPLICIT="false"
   MI_ICLOUD_FOLDER_NAME="Mac Setup Snapshot"
   MI_ICLOUD_ROOT="$HOME/Library/Mobile Documents/com~apple~CloudDocs"
   MI_SKIP_PREPARE="false"
@@ -186,18 +202,18 @@ mi_set_long_option() {
         mi_set_bool_var MI_CAFFEINATE "$value" || return 2
       fi
       ;;
-    --resume-file) MI_RESUME_FILE="$value" ;;
+    --resume-file) MI_RESUME_FILE="$value"; MI_RESUME_FILE_EXPLICIT="true" ;;
     --reset-resume) MI_RESET_RESUME="true" ;;
     --check-only) mi_set_bool_var MI_CHECK_ONLY "$value" || return 2 ;;
-    --apps) mi_set_bool_var MI_APPS "$value" || return 2 ;;
-    --brew) mi_set_bool_var MI_BREW "$value" || return 2 ;;
-    --npm) mi_set_bool_var MI_NPM "$value" || return 2 ;;
-    --pip) mi_set_bool_var MI_PIP "$value" || return 2 ;;
-    --pipx) mi_set_bool_var MI_PIPX "$value" || return 2 ;;
-    --oh-my-zsh) mi_set_bool_var MI_OH_MY_ZSH "$value" || return 2 ;;
-    --xcode) mi_set_bool_var MI_XCODE "$value" || return 2 ;;
-    --dotfiles) mi_set_bool_var MI_DOTFILES "$value" || return 2 ;;
-    --manual-apps) mi_set_bool_var MI_MANUAL_APPS "$value" || return 2 ;;
+    --apps) mi_set_bool_var MI_APPS "$value" || return 2; MI_APPS_EXPLICIT="true" ;;
+    --brew) mi_set_bool_var MI_BREW "$value" || return 2; MI_BREW_EXPLICIT="true" ;;
+    --npm) mi_set_bool_var MI_NPM "$value" || return 2; MI_NPM_EXPLICIT="true" ;;
+    --pip) mi_set_bool_var MI_PIP "$value" || return 2; MI_PIP_EXPLICIT="true" ;;
+    --pipx) mi_set_bool_var MI_PIPX "$value" || return 2; MI_PIPX_EXPLICIT="true" ;;
+    --oh-my-zsh) mi_set_bool_var MI_OH_MY_ZSH "$value" || return 2; MI_OH_MY_ZSH_EXPLICIT="true" ;;
+    --xcode) mi_set_bool_var MI_XCODE "$value" || return 2; MI_XCODE_EXPLICIT="true" ;;
+    --dotfiles) mi_set_bool_var MI_DOTFILES "$value" || return 2; MI_DOTFILES_EXPLICIT="true" ;;
+    --manual-apps) mi_set_bool_var MI_MANUAL_APPS "$value" || return 2; MI_MANUAL_APPS_EXPLICIT="true" ;;
     --interactive) mi_set_bool_var MI_INTERACTIVE "$value" || return 2 ;;
     --yes) MI_YES="true" ;;
     --no) MI_NO="true" ;;
@@ -217,10 +233,10 @@ mi_set_long_option() {
     --skip-existing) mi_set_bool_var MI_SKIP_EXISTING "$value" || return 2 ;;
     --overwrite) mi_set_bool_var MI_OVERWRITE "$value" || return 2 ;;
     --use-versions) mi_set_bool_var MI_USE_VERSIONS "$value" || return 2 ;;
-    --install-missing-tools) mi_set_bool_var MI_INSTALL_MISSING_TOOLS "$value" || return 2 ;;
+    --install-missing-tools) mi_set_bool_var MI_INSTALL_MISSING_TOOLS "$value" || return 2; MI_INSTALL_MISSING_TOOLS_EXPLICIT="true" ;;
     --login-check) mi_set_bool_var MI_LOGIN_CHECK "$value" || return 2 ;;
     --appstore-login)
-      case "$value" in skip|prompt|pause|require) MI_APPSTORE_LOGIN="$value" ;; *) mi_error "--appstore-login expects skip, prompt, pause, or require"; return 2 ;; esac
+      case "$value" in skip|prompt|pause|require) MI_APPSTORE_LOGIN="$value"; MI_APPSTORE_LOGIN_EXPLICIT="true" ;; *) mi_error "--appstore-login expects skip, prompt, pause, or require"; return 2 ;; esac
       ;;
     --section) MI_SECTIONS="${MI_SECTIONS}${MI_SECTIONS:+
 }$value" ;;
@@ -246,14 +262,14 @@ mi_set_long_option() {
     --command-timeout)
       case "$value" in
         ''|*[!0-9]*) mi_error "--command-timeout expects seconds"; return 2 ;;
-        *) MI_COMMAND_TIMEOUT="$value" ;;
+        *) MI_COMMAND_TIMEOUT="$value"; MI_COMMAND_TIMEOUT_EXPLICIT="true" ;;
       esac
       ;;
-    --report) MI_REPORT="$value" ;;
+    --report) MI_REPORT="$value"; MI_REPORT_EXPLICIT="true" ;;
     --report-format)
-      case "$value" in text|md|yaml|json) MI_REPORT_FORMAT="$value" ;; *) mi_error "--report-format expects text, md, yaml, or json"; return 2 ;; esac
+      case "$value" in text|md|yaml|json) MI_REPORT_FORMAT="$value"; MI_REPORT_FORMAT_EXPLICIT="true" ;; *) mi_error "--report-format expects text, md, yaml, or json"; return 2 ;; esac
       ;;
-    --skip-report) MI_SKIP_REPORT="true" ;;
+    --skip-report) MI_SKIP_REPORT="true"; MI_SKIP_REPORT_EXPLICIT="true" ;;
     *) mi_error "unknown option: $name"; return 2 ;;
   esac
 }

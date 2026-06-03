@@ -2,22 +2,22 @@
 
 mi_config_apply() {
   if [ -f "$MI_CONFIG" ] && mi_has yq; then
-    mi_config_bool sources.apps MI_APPS
-    mi_config_bool sources.brew MI_BREW
-    mi_config_bool sources.npm MI_NPM
-    mi_config_bool sources.pip MI_PIP
-    mi_config_bool sources.pipx MI_PIPX
-    mi_config_bool sources.oh_my_zsh MI_OH_MY_ZSH
-    mi_config_bool sources.xcode MI_XCODE
-    mi_config_bool sources.dotfiles MI_DOTFILES
-    mi_config_bool sources.manual_apps MI_MANUAL_APPS
+    [ "$MI_APPS_EXPLICIT" = "true" ] || mi_config_bool sources.apps MI_APPS
+    [ "$MI_BREW_EXPLICIT" = "true" ] || mi_config_bool sources.brew MI_BREW
+    [ "$MI_NPM_EXPLICIT" = "true" ] || mi_config_bool sources.npm MI_NPM
+    [ "$MI_PIP_EXPLICIT" = "true" ] || mi_config_bool sources.pip MI_PIP
+    [ "$MI_PIPX_EXPLICIT" = "true" ] || mi_config_bool sources.pipx MI_PIPX
+    [ "$MI_OH_MY_ZSH_EXPLICIT" = "true" ] || mi_config_bool sources.oh_my_zsh MI_OH_MY_ZSH
+    [ "$MI_XCODE_EXPLICIT" = "true" ] || mi_config_bool sources.xcode MI_XCODE
+    [ "$MI_DOTFILES_EXPLICIT" = "true" ] || mi_config_bool sources.dotfiles MI_DOTFILES
+    [ "$MI_MANUAL_APPS_EXPLICIT" = "true" ] || mi_config_bool sources.manual_apps MI_MANUAL_APPS
     mi_config_bool defaults.interactive MI_INTERACTIVE
-    mi_config_bool defaults.install_missing_tools MI_INSTALL_MISSING_TOOLS
+    [ "$MI_INSTALL_MISSING_TOOLS_EXPLICIT" = "true" ] || mi_config_bool defaults.install_missing_tools MI_INSTALL_MISSING_TOOLS
     mi_config_bool defaults.record_versions MI_RECORD_VERSIONS
     mi_config_bool defaults.skip_existing MI_SKIP_EXISTING
     mi_config_bool defaults.overwrite MI_OVERWRITE
     mi_config_bool defaults.caffeinate MI_CAFFEINATE
-    mi_config_string defaults.resume_file MI_RESUME_FILE
+    [ "$MI_RESUME_FILE_EXPLICIT" = "true" ] || mi_config_string defaults.resume_file MI_RESUME_FILE
     if [ "$MI_TARGET_EXPLICIT" != "true" ]; then
       mi_config_enum storage.default_target MI_TARGET icloud local github
     fi
@@ -29,11 +29,11 @@ mi_config_apply() {
     [ "$MI_CHECK_MANUAL_BREW_EXPLICIT" = "true" ] || mi_config_bool backup.check_manual_brew MI_CHECK_MANUAL_BREW
     [ "$MI_MANUAL_BREW_MATCH_EXPLICIT" = "true" ] || mi_config_enum backup.manual_brew_match MI_MANUAL_BREW_MATCH ask never all
     [ -n "$MI_DOTFILES_PATHS" ] || mi_config_string_list backup.dotfiles MI_DOTFILES_PATHS
-    mi_config_number defaults.command_timeout MI_COMMAND_TIMEOUT
-    mi_config_enum restore.appstore_login MI_APPSTORE_LOGIN skip prompt pause require
-    mi_config_string reports.path MI_REPORT
-    mi_config_enum reports.format MI_REPORT_FORMAT text md yaml json
-    mi_config_bool reports.skip MI_SKIP_REPORT
+    [ "$MI_COMMAND_TIMEOUT_EXPLICIT" = "true" ] || mi_config_number defaults.command_timeout MI_COMMAND_TIMEOUT
+    [ "$MI_APPSTORE_LOGIN_EXPLICIT" = "true" ] || mi_config_enum restore.appstore_login MI_APPSTORE_LOGIN skip prompt pause require
+    [ "$MI_REPORT_EXPLICIT" = "true" ] || mi_config_string reports.path MI_REPORT
+    [ "$MI_REPORT_FORMAT_EXPLICIT" = "true" ] || mi_config_enum reports.format MI_REPORT_FORMAT text md yaml json
+    [ "$MI_SKIP_REPORT_EXPLICIT" = "true" ] || mi_config_bool reports.skip MI_SKIP_REPORT
   elif [ -f "$MI_CONFIG" ]; then
     mi_warn "config exists but yq is not installed; using CLI/default values"
   fi
