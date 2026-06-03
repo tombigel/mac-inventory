@@ -135,6 +135,8 @@ Wizard menus are controlled by the tracked repo file `mac-setup.wizard.yml`. Edi
 
 The user config is separate: backup wizard mode keeps `mac-setup.config.yml` in the selected backup folder. If it is missing, the wizard generates it by default. If it already exists, the wizard asks whether to create a new timestamped config, overwrite the existing one, or use the existing one.
 
+Wizard dry-run defaults are intentionally different by workflow: backup defaults to a real run, while restore defaults to dry-run preview.
+
 Useful wizard commands:
 
 ```bash

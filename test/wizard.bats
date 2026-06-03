@@ -57,6 +57,19 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
+@test "wizard dry-run defaults are backup no and restore yes" {
+  run env PROJECT_ROOT="$PROJECT_ROOT" bash -c '
+    . "$PROJECT_ROOT/lib/common.sh"
+    . "$PROJECT_ROOT/lib/args.sh"
+    . "$PROJECT_ROOT/lib/endpoint.sh"
+    . "$PROJECT_ROOT/lib/inventory.sh"
+    . "$PROJECT_ROOT/lib/wizard.sh"
+    printf "%s|%s\n" "$(mi_wizard_dry_run_default backup)" "$(mi_wizard_dry_run_default restore)"
+  '
+  [ "$status" -eq 0 ]
+  [ "$output" = "no|yes" ]
+}
+
 @test "wizard backup config path follows selected backup directory" {
   run env PROJECT_ROOT="$PROJECT_ROOT" bash -c '
     . "$PROJECT_ROOT/lib/common.sh"

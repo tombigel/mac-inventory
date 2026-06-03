@@ -278,6 +278,8 @@ mac-setup --wizard-config ./mac-setup.wizard.yml wizard
 
 The wizard uses numbered menus and comma/range source selection such as `1,3-5`, `all`, or `none`. Backup keeps the user config in the selected backup folder. If `mac-setup.config.yml` is missing there, the wizard generates it by default. If it already exists, the wizard asks whether to create a new timestamped config, overwrite the existing config, or use the existing config. Restore offers to use an existing config when one is found, and choosing no runs that restore without config. It compiles choices into the existing `backup` or `restore` flags and then runs that command, preserving additive restore, dry-run, endpoint, skip-existing, and prompt safety behavior.
 
+The wizard dry-run prompt defaults to no for backup and yes for restore.
+
 The wizard requires an interactive terminal. Use normal `backup` or `restore` commands for scripts and automation. Running `mac-setup` with no arguments opens the wizard only when stdin is a TTY; non-interactive no-args still prints help.
 
 ## Endpoint Options

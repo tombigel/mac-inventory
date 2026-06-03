@@ -147,6 +147,14 @@ mi_wizard_prompt_enabled() {
   [ "$(mi_wizard_config_bool ".wizard.flows.$1.prompts.$2" true)" = "true" ]
 }
 
+mi_wizard_dry_run_default() {
+  case "$1" in
+    backup) printf 'no' ;;
+    restore) printf 'yes' ;;
+    *) printf 'yes' ;;
+  esac
+}
+
 mi_wizard_default_endpoint() {
   local flow="$1"
   local key fallback value
@@ -544,7 +552,7 @@ mi_wizard_run() {
   flow="$(mi_wizard_choice "Workflow" "$options" 1)"
 
   if mi_wizard_prompt_enabled "$flow" dry_run; then
-    dry_run="$(mi_wizard_yes_no_value "Preview only with --dry-run?" "yes")"
+    dry_run="$(mi_wizard_yes_no_value "Preview only with --dry-run?" "$(mi_wizard_dry_run_default "$flow")")"
     [ "$dry_run" = "true" ] && MI_DRY_RUN="true" || MI_DRY_RUN="false"
   fi
 
