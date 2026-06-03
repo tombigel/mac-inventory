@@ -1033,7 +1033,7 @@ Mac Setup Snapshot summary
 
 Use `--verbose` to include raw inventory counts in the terminal summary. Use `--report <path>` to write a structured report file. Use `--skip-report` when embedding output in another script and the summary would be noisy.
 
-ANSI styling and live progress are human-terminal only. Structured reports and non-TTY output stay plain and stable for scripts.
+Backup summaries include an `Open folder` `file://` link for the folder that contains the generated snapshot, readable list, and restore notes. ANSI styling, live progress, summary success/failure colors, and clickable links are human-terminal only. Structured reports and non-TTY output stay plain and stable for scripts.
 
 ## Exit Status
 

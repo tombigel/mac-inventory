@@ -131,8 +131,34 @@ mi_report_default_summary_next_step() {
   esac
 }
 
+mi_report_file_url() {
+  local path="$1"
+  path="$(mi_expand_path "$path")"
+  case "$path" in
+    /*) ;;
+    .) path="$(pwd)" ;;
+    ./*) path="$(pwd)/${path#./}" ;;
+    *) path="$(pwd)/$path" ;;
+  esac
+  path="$(printf '%s\n' "$path" | sed 's/%/%25/g; s/ /%20/g; s/#/%23/g; s/?/%3F/g')"
+  printf 'file://%s\n' "$path"
+}
+
+mi_report_folder_link() {
+  local label="$1"
+  local folder="$2"
+  local url
+  [ -n "$folder" ] || return 0
+  url="$(mi_report_file_url "$folder")"
+  if mi_color_enabled; then
+    printf '  Open folder: \033]8;;%s\a%s\033]8;;\a\n' "$url" "$label"
+  else
+    printf '  Open folder: %s\n' "$url"
+  fi
+}
+
 mi_report_default_summary_artifacts() {
-  local backup_list backup_readme
+  local backup_list backup_readme backup_folder
   case "$MI_COMMAND" in
     backup)
       if [ "$MI_DRY_RUN" = "true" ]; then
@@ -143,6 +169,8 @@ mi_report_default_summary_artifacts() {
         backup_readme="$(mi_inventory_backup_readme_path 2>/dev/null || true)"
         [ -n "$backup_list" ] && printf '  Readable list: %s\n' "$backup_list"
         [ -n "$backup_readme" ] && printf '  Restore notes: %s\n' "$backup_readme"
+        backup_folder="$(dirname -- "$MI_INVENTORY")"
+        mi_report_folder_link "Open backup folder in Finder" "$backup_folder"
       fi
       ;;
     restore)
@@ -170,15 +198,19 @@ mi_report_render_default_summary() {
   local rc="$1"
   local status="completed"
   [ "$rc" -eq 0 ] || status="stopped with errors"
-  printf '\nMac Setup Snapshot summary\n'
-  printf '  %s %s in %ss.\n' "${MI_COMMAND}${MI_SUBCOMMAND:+ $MI_SUBCOMMAND}" "$status" "$(mi_report_duration_seconds)"
+  printf '\n%s\n' "$(mi_heading "Mac Setup Snapshot summary")"
+  if [ "$rc" -eq 0 ]; then
+    printf '  %s %s in %ss.\n' "${MI_COMMAND}${MI_SUBCOMMAND:+ $MI_SUBCOMMAND}" "$(mi_success_text "$status")" "$(mi_report_duration_seconds)"
+  else
+    printf '  %s %s in %ss.\n' "${MI_COMMAND}${MI_SUBCOMMAND:+ $MI_SUBCOMMAND}" "$(mi_alert_text "$status")" "$(mi_report_duration_seconds)"
+  fi
   printf '  Dry run: %s\n' "$MI_DRY_RUN"
   mi_report_default_summary_artifacts
   mi_report_default_summary_events
   if [ "$MI_VERBOSE" = "true" ]; then
     printf '  Counts: %s\n' "$(mi_report_counts_line)"
   fi
-  printf '  Next step: %s\n' "$(mi_report_default_summary_next_step)"
+  printf '  %s %s\n' "$(mi_heading "Next step:")" "$(mi_success_text "$(mi_report_default_summary_next_step)")"
 }
 
 mi_report_render_md() {

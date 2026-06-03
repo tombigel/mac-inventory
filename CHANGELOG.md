@@ -21,6 +21,7 @@
 - Added `wizard` for guided backup/restore setup with numbered menus.
 - Added `wizard config generate` and `mac-setup.wizard.yml` for declarative wizard menu labels, ordering, visibility, and defaults.
 - Added terminal-palette ANSI styling for interactive headings, muted details, success states, and alerts.
+- Added backup summary folder links and styled summary success/failure and next-step text for interactive terminals.
 
 ### Changed
 

@@ -206,6 +206,7 @@ YAML
   [ "$status" -eq 0 ]
   [[ "$output" == *"Mac Setup Snapshot summary"* ]]
   [[ "$output" == *"backup completed"* ]]
+  [[ "$output" == *"Open folder: file://"* ]]
   [[ "$output" == *"Next step:"* ]]
   [[ "$output" != *"Counts:"* ]]
 
