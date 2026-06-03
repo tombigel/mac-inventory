@@ -35,11 +35,17 @@ for source_file in "$PROJECT_DIR"/lib/sources/*.sh; do
 done
 
 main() {
+  rc=0
+
   mi_args_init
 
   if [ "$#" -eq 0 ]; then
-    mi_show_help
-    return 0
+    if [ -t 0 ]; then
+      set -- wizard
+    else
+      mi_show_help
+      return 0
+    fi
   fi
 
   if ! mi_parse_args "$@"; then
@@ -51,12 +57,34 @@ main() {
     return 0
   fi
 
+  if [ "$MI_COMMAND" = "wizard" ]; then
+    case "$MI_SUBCOMMAND" in
+      "")
+        mi_wizard_run
+        rc=$?
+        ;;
+      config)
+        if [ "$MI_WIZARD_SUBCOMMAND" = "generate" ]; then
+          mi_wizard_config_generate
+          rc=$?
+        else
+          mi_error "unknown wizard config command: ${MI_WIZARD_SUBCOMMAND:-<missing>}"
+          rc=2
+        fi
+        ;;
+      *)
+        mi_error "unknown wizard command: ${MI_SUBCOMMAND:-<missing>}"
+        rc=2
+        ;;
+    esac
+    mi_cleanup_temp_files
+    return "$rc"
+  fi
+
   mi_endpoint_resolve_config_path || return $?
   mi_config_apply
   mi_endpoint_resolve || return $?
   mi_report_start
-
-  rc=0
 
   if [ "$MI_GIST_PULL" = "true" ] && [ "$MI_COMMAND" != "gist" ]; then
     mi_gist_pull || rc=$?
@@ -104,23 +132,6 @@ main() {
           mi_error "unknown config command: ${MI_SUBCOMMAND:-<missing>}"
           rc=2
         fi
-        ;;
-      wizard)
-        case "$MI_SUBCOMMAND" in
-          config)
-            if [ "$MI_WIZARD_SUBCOMMAND" = "generate" ]; then
-              mi_wizard_config_generate
-              rc=$?
-            else
-              mi_error "unknown wizard config command: ${MI_WIZARD_SUBCOMMAND:-<missing>}"
-              rc=2
-            fi
-            ;;
-          *)
-            mi_error "unknown wizard command: ${MI_SUBCOMMAND:-<missing>}"
-            rc=2
-            ;;
-        esac
         ;;
       gist)
         case "$MI_SUBCOMMAND" in
