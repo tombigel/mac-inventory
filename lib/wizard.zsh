@@ -218,23 +218,23 @@ mi_wizard_read_editable_default() {
   local answer styled_prompt
   styled_prompt="$(mi_emphasize_dry_run "$prompt")"
 
-  if mi_wizard_interactive && mi_has zsh; then
-    if answer="$(zsh -f -c 'answer=$1; prompt=$2; vared -p "$prompt " answer >/dev/tty 2>/dev/tty || exit $?; printf "%s\n" "$answer"' _ "$default" "$prompt" </dev/tty)"; then
+  if mi_wizard_interactive && [ -r /dev/tty ] && [ -w /dev/tty ]; then
+    mi_live_finish
+    answer="$default"
+    if vared -p "$styled_prompt " answer </dev/tty >/dev/tty 2>/dev/tty; then
       printf '%s\n' "$answer"
       return 0
     fi
   fi
 
-  if mi_wizard_interactive && help read 2>/dev/null | grep -q -- '-i'; then
-    mi_live_finish
-    IFS= read -e -i "$default" -r -p "$styled_prompt " answer
-    printf '%s\n' "$answer"
-    return 0
-  fi
-
   answer="$(mi_wizard_read "$prompt [$default]:")"
   [ -n "$answer" ] || answer="$default"
   printf '%s\n' "$answer"
+}
+
+mi_wizard_number_width() {
+  local count="$1"
+  printf '%s\n' "${#count}"
 }
 
 mi_wizard_yes_no_value() {
@@ -255,21 +255,22 @@ mi_wizard_choice() {
   local title="$1"
   local options="$2"
   local default_index="$3"
-  local count answer label value index row
+  local count answer label value index row number_width
   mi_ux_line ""
   mi_ux_line "$(mi_heading "$title")"
+  count="$(printf '%s\n' "$options" | sed '/^$/d' | wc -l | tr -d ' ')"
+  number_width="$(mi_wizard_number_width "$count")"
   index=0
   printf '%s\n' "$options" | while IFS="|" read -r value label; do
     [ -n "$value" ] || continue
     index=$((index + 1))
-    row="    $index. $label"
+    row="$(printf "    %${number_width}s. %s" "$index" "$label")"
     if [ "$index" -eq "$default_index" ] 2>/dev/null; then
       printf '%s\n' "$(mi_style "1;32" "$row")" >&2
     else
       printf '%s\n' "$row" >&2
     fi
   done
-  count="$(printf '%s\n' "$options" | sed '/^$/d' | wc -l | tr -d ' ')"
   while :; do
     answer="$(mi_wizard_read "Choose [$default_index]:")"
     [ -n "$answer" ] || answer="$default_index"
@@ -306,22 +307,23 @@ mi_wizard_parse_selection_token() {
 
 mi_wizard_sources_prompt() {
   local flow="$1"
-  local rows count defaults answer selected_indices selected id label default index var selected
+  local rows count defaults answer selected_indices selected id label default index var selected number_width marker
   rows="$(mi_wizard_sources "$flow")"
   mi_ux_line ""
   mi_ux_line "$(mi_heading "Sources")"
+  count="$(printf '%s\n' "$rows" | sed '/^$/d' | wc -l | tr -d ' ')"
+  number_width="$(mi_wizard_number_width "$count")"
   index=0
   defaults=""
   printf '%s\n' "$rows" | while IFS="|" read -r id label default; do
     [ -n "$id" ] || continue
     index=$((index + 1))
+    marker="[ ]"
     if [ "$default" = "true" ]; then
-      printf '  %s. [x] %s\n' "$index" "$label" >&2
-    else
-      printf '  %s. [ ] %s\n' "$index" "$label" >&2
+      marker="[x]"
     fi
+    printf "  %${number_width}s. %s %s\n" "$index" "$marker" "$label" >&2
   done
-  count="$(printf '%s\n' "$rows" | sed '/^$/d' | wc -l | tr -d ' ')"
   index=0
   while IFS="|" read -r id _label default; do
     [ -n "$id" ] || continue
