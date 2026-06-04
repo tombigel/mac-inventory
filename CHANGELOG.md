@@ -2,8 +2,21 @@
 
 ## Unreleased
 
+No unreleased changes.
+
+## 0.8.0 - 2026-06-04
+
 ### Added
 
+- Added opt-in recursive GitHub project backup/restore with `--github-projects=true` and repeatable `--github-projects-root <absolute-path>`.
+- Added `github_projects` snapshot rows with root path, relative path, sanitized clone URL, branch, HEAD SHA, dirty/untracked state, ahead/behind counts, and stable `github_project:<owner>/<repo>` refs.
+- Added additive GitHub project restore that creates parent folders and clones missing repositories only; existing Git repos and existing non-Git paths are skipped.
+- Added GitHub projects to Markdown lists, process report counts, ignore/unignore, generated config, wizard source selection, and docs.
+- Added backup wizard prompting for a GitHub projects folder when the opt-in GitHub projects source is selected.
+- Added direct wizard entry forms: `mac-setup wizard backup`, `mac-setup wizard restore`, `mac-setup backup wizard`, and `mac-setup restore wizard`.
+- Added restore wizard requirement checks before later restore prompts, with choices to run prepare preflight, skip preflight, or abort.
+- Added `--restore-step-mode auto|pause`; pause mode prompts before each selected restore section with `next`, `skip`, or `abort`.
+- Added prepare-time `git` readiness checks when GitHub project restore is enabled.
 - Added `bin/mac-setup` as the CLI entrypoint for Mac Setup Snapshot.
 - Added README and manual common usage flows for checking backup readiness, saving a setup snapshot to iCloud Drive, and restoring from iCloud after formatting.
 - Added iCloud Drive as the default backup and restore endpoint, with explicit local and GitHub/Gist endpoint options.

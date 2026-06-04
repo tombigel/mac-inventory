@@ -10,6 +10,7 @@ wizard:
         storage: true
         config: true
         sources: true
+        github_projects_folder: true
         manual_brew_match: true
       sources:
         - id: apps
@@ -39,6 +40,9 @@ wizard:
         - id: manual_apps
           label: "manual apps"
           default: true
+        - id: github_projects
+          label: "GitHub projects"
+          default: false
 
     restore:
       enabled: true
@@ -46,10 +50,12 @@ wizard:
       default_source: icloud
       prompts:
         dry_run: true
+        preflight: true
         storage: true
         use_config: true
         sources: true
         appstore_login: true
+        step_mode: true
       sources:
         - id: apps
           label: "App Store apps"
@@ -78,3 +84,6 @@ wizard:
         - id: manual_apps
           label: "manual apps"
           default: true
+        - id: github_projects
+          label: "GitHub projects"
+          default: false

@@ -52,7 +52,7 @@ mi_report_inventory_count() {
 }
 
 mi_report_counts_line() {
-  local apps formulae casks npm pip pipx manual dotfiles
+  local apps formulae casks npm pip pipx manual dotfiles github_projects
   if [ "$MI_COMMAND" = "backup" ] && [ "$MI_DRY_RUN" = "true" ]; then
     printf 'not_written_during_dry_run\n'
     return 0
@@ -65,8 +65,9 @@ mi_report_counts_line() {
   pipx="$(mi_report_inventory_count '.pipx.packages // [] | length')"
   manual="$(mi_report_inventory_count '.manual_apps.apps // [] | length')"
   dotfiles="$(mi_report_inventory_count '.dotfiles.files // [] | length')"
-  printf 'apps=%s brew_formulae=%s brew_casks=%s npm=%s pip=%s pipx=%s manual_apps=%s dotfiles=%s\n' \
-    "$apps" "$formulae" "$casks" "$npm" "$pip" "$pipx" "$manual" "$dotfiles"
+  github_projects="$(mi_report_inventory_count '.github_projects.repos // [] | length')"
+  printf 'apps=%s brew_formulae=%s brew_casks=%s npm=%s pip=%s pipx=%s manual_apps=%s dotfiles=%s github_projects=%s\n' \
+    "$apps" "$formulae" "$casks" "$npm" "$pip" "$pipx" "$manual" "$dotfiles" "$github_projects"
 }
 
 mi_report_events_text() {

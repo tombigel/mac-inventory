@@ -8,7 +8,8 @@ pipx|pipx packages|true
 oh_my_zsh|Oh My Zsh|true
 xcode|Xcode|true
 dotfiles|dotfiles|true
-manual_apps|manual apps|true"
+manual_apps|manual apps|true
+github_projects|GitHub projects|false"
 
 MI_WIZARD_DEFAULT_RESTORE_SOURCES="apps|App Store apps|true
 brew|Homebrew|true
@@ -18,7 +19,8 @@ pipx|pipx packages|true
 oh_my_zsh|Oh My Zsh|true
 xcode|Xcode|true
 dotfiles|dotfiles|true
-manual_apps|manual apps|true"
+manual_apps|manual apps|true
+github_projects|GitHub projects|false"
 
 MI_WIZARD_CONFIG_READY="false"
 
@@ -31,7 +33,7 @@ mi_wizard_valid_flow() {
 
 mi_wizard_valid_source() {
   case "$1" in
-    apps|brew|npm|pip|pipx|oh_my_zsh|xcode|dotfiles|manual_apps) return 0 ;;
+    apps|brew|npm|pip|pipx|oh_my_zsh|xcode|dotfiles|manual_apps|github_projects) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -40,8 +42,8 @@ mi_wizard_valid_prompt() {
   local flow="$1"
   local prompt="$2"
   case "$flow:$prompt" in
-    backup:dry_run|backup:storage|backup:config|backup:sources|backup:manual_brew_match) return 0 ;;
-    restore:dry_run|restore:storage|restore:use_config|restore:sources|restore:appstore_login) return 0 ;;
+    backup:dry_run|backup:storage|backup:config|backup:sources|backup:github_projects_folder|backup:manual_brew_match) return 0 ;;
+    restore:dry_run|restore:preflight|restore:storage|restore:use_config|restore:sources|restore:appstore_login|restore:step_mode) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -57,6 +59,7 @@ mi_wizard_source_var() {
     xcode) printf 'MI_XCODE' ;;
     dotfiles) printf 'MI_DOTFILES' ;;
     manual_apps) printf 'MI_MANUAL_APPS' ;;
+    github_projects) printf 'MI_GITHUB_PROJECTS' ;;
     *) return 1 ;;
   esac
 }
@@ -373,6 +376,40 @@ all|Accept all Homebrew cask candidates"
   MI_CHECK_MANUAL_BREW_EXPLICIT="true"
 }
 
+mi_wizard_default_github_projects_root() {
+  printf '%s/Projects\n' "$HOME"
+}
+
+mi_wizard_validate_absolute_path() {
+  local path="$1"
+  [ -n "$path" ] || return 1
+  case "$path" in
+    /*) ;;
+    *) return 1 ;;
+  esac
+  case "$path" in
+    *"/../"*|*"/.."|"../"*|"..") return 1 ;;
+  esac
+}
+
+mi_wizard_github_projects_folder_prompt() {
+  local answer default
+  mi_wizard_prompt_enabled backup github_projects_folder || return 0
+  [ "$MI_GITHUB_PROJECTS" = "true" ] || return 0
+  default="$(mi_wizard_default_github_projects_root)"
+  mi_ux_line ""
+  mi_ux_line "$(mi_heading "GitHub Projects")"
+  while :; do
+    answer="$(mi_wizard_read "GitHub projects folder absolute path [$default]:")"
+    [ -n "$answer" ] || answer="$default"
+    if mi_wizard_validate_absolute_path "$answer"; then
+      MI_GITHUB_PROJECTS_ROOTS="$answer"
+      return 0
+    fi
+    mi_warn "enter an absolute folder path"
+  done
+}
+
 mi_wizard_restore_options() {
   local choice options default_index
   mi_wizard_prompt_enabled restore appstore_login || return 0
@@ -389,6 +426,49 @@ pause|Pause for manual App Store sign-in before continuing
 require|Fail unless App Store access is ready"
   choice="$(mi_wizard_choice "App Store Login" "$options" "$default_index")"
   MI_APPSTORE_LOGIN="$choice"
+}
+
+mi_wizard_restore_missing_requirements() {
+  xcode-select -p >/dev/null 2>&1 || printf '%s\n' "Xcode Command Line Tools"
+  mi_has brew || printf '%s\n' "Homebrew"
+  mi_yq_is_v4 || printf '%s\n' "yq v4"
+}
+
+mi_wizard_restore_preflight_prompt() {
+  local missing choice options
+  mi_wizard_prompt_enabled restore preflight || return 0
+  missing="$(mi_wizard_restore_missing_requirements)"
+  mi_ux_line ""
+  mi_ux_line "$(mi_heading "Requirements")"
+  if [ -z "$missing" ]; then
+    mi_ux_line "$(mi_success_text "Required restore tools look ready.")"
+    return 0
+  fi
+  mi_ux_line "$(mi_muted "Missing or unavailable:")"
+  printf '%s\n' "$missing" | while IFS= read -r item; do
+    [ -n "$item" ] && printf '  - %s\n' "$item" >&2
+  done
+  options="run|Run prepare preflight before restore
+skip|Skip prepare preflight
+abort|Abort wizard"
+  choice="$(mi_wizard_choice "Preflight" "$options" 1)"
+  case "$choice" in
+    run) MI_SKIP_PREPARE="false" ;;
+    skip) MI_SKIP_PREPARE="true" ;;
+    abort)
+      mi_error "restore wizard aborted"
+      return 1
+      ;;
+  esac
+}
+
+mi_wizard_restore_step_mode_prompt() {
+  local choice options
+  mi_wizard_prompt_enabled restore step_mode || return 0
+  options="auto|Run selected restore steps automatically
+pause|Prompt before each restore step"
+  choice="$(mi_wizard_choice "Restore Steps" "$options" 1)"
+  MI_RESTORE_STEP_MODE="$choice"
 }
 
 mi_wizard_backup_config_path() {
@@ -506,6 +586,14 @@ mi_wizard_args_for_sources() {
   printf '%s\n' "--xcode=$MI_XCODE"
   printf '%s\n' "--dotfiles=$MI_DOTFILES"
   printf '%s\n' "--manual-apps=$MI_MANUAL_APPS"
+  printf '%s\n' "--github-projects=$MI_GITHUB_PROJECTS"
+  if [ -n "$MI_GITHUB_PROJECTS_ROOTS" ]; then
+    while IFS= read -r root; do
+      [ -n "$root" ] && printf '%s\n' "--github-projects-root" "$root"
+    done <<EOF
+$MI_GITHUB_PROJECTS_ROOTS
+EOF
+  fi
 }
 
 mi_wizard_dispatch() {
@@ -537,7 +625,9 @@ mi_wizard_args_for_flow() {
       ;;
     restore)
       printf '%s\n' "--source" "$MI_SOURCE"
+      printf '%s\n' "--skip-prepare" "$MI_SKIP_PREPARE"
       printf '%s\n' "--appstore-login" "$MI_APPSTORE_LOGIN"
+      printf '%s\n' "--restore-step-mode" "$MI_RESTORE_STEP_MODE"
       ;;
   esac
   [ "$MI_CONFIG_EXPLICIT" = "true" ] && printf '%s\n' "--config" "$MI_CONFIG"
@@ -545,6 +635,7 @@ mi_wizard_args_for_flow() {
 }
 
 mi_wizard_run() {
+  local forced_flow="${1:-}"
   local flow options dry_run
   if ! mi_wizard_interactive; then
     mi_error "wizard requires an interactive terminal; use backup or restore directly for non-interactive runs"
@@ -553,18 +644,28 @@ mi_wizard_run() {
 
   mi_wizard_load_config
   options=""
-  if mi_wizard_flow_enabled backup; then
-    options="${options}backup|$(mi_wizard_flow_label backup)"
-  fi
-  if mi_wizard_flow_enabled restore; then
-    options="${options}${options:+
+  if [ -n "$forced_flow" ]; then
+    mi_wizard_valid_flow "$forced_flow" || { mi_error "unknown wizard workflow: $forced_flow"; return 2; }
+    mi_wizard_flow_enabled "$forced_flow" || { mi_error "wizard config disables $forced_flow flow"; return 2; }
+    flow="$forced_flow"
+  else
+    if mi_wizard_flow_enabled backup; then
+      options="${options}backup|$(mi_wizard_flow_label backup)"
+    fi
+    if mi_wizard_flow_enabled restore; then
+      options="${options}${options:+
 }restore|$(mi_wizard_flow_label restore)"
+    fi
+    [ -n "$options" ] || { mi_error "wizard config disables all flows"; return 2; }
   fi
-  [ -n "$options" ] || { mi_error "wizard config disables all flows"; return 2; }
 
   mi_ux_line ""
   mi_ux_line "$(mi_heading "Mac Setup Snapshot Wizard")"
-  flow="$(mi_wizard_choice "Workflow" "$options" 1)"
+  if [ -z "$forced_flow" ]; then
+    flow="$(mi_wizard_choice "Workflow" "$options" 1)"
+  else
+    mi_ux_line "$(mi_muted "Workflow: $(mi_wizard_flow_label "$flow")")"
+  fi
 
   if mi_wizard_prompt_enabled "$flow" dry_run; then
     dry_run="$(mi_wizard_yes_no_value "Preview only with --dry-run?" "$(mi_wizard_dry_run_default "$flow")")"
@@ -583,6 +684,9 @@ mi_wizard_run() {
       MI_SOURCE_EXPLICIT="true"
       ;;
   esac
+  if [ "$flow" = "restore" ]; then
+    mi_wizard_restore_preflight_prompt || return $?
+  fi
   mi_wizard_prompt_enabled "$flow" storage && mi_wizard_endpoint_prompt "$flow"
   case "$flow" in
     backup)
@@ -593,9 +697,13 @@ mi_wizard_run() {
       ;;
   esac
   mi_wizard_prompt_enabled "$flow" sources && mi_wizard_sources_prompt "$flow"
+  [ "$flow" = "backup" ] && mi_wizard_github_projects_folder_prompt
   case "$flow" in
     backup) mi_wizard_backup_options ;;
-    restore) mi_wizard_restore_options ;;
+    restore)
+      mi_wizard_restore_options
+      mi_wizard_restore_step_mode_prompt
+      ;;
   esac
   mi_wizard_dispatch "$flow"
 }

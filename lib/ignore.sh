@@ -75,6 +75,12 @@ mi_manual_app_ref() {
   printf 'manual:%s-%s\n' "$key" "$hash"
 }
 
+mi_github_project_ref() {
+  local owner_repo="$1"
+  [ -n "$owner_repo" ] || owner_repo="project-$(mi_string_hash "$2")"
+  printf 'github_project:%s\n' "$owner_repo"
+}
+
 mi_ignore_normalize() {
   printf '%s\n' "$1" | sed 's/\.app$//' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]//g'
 }
@@ -104,6 +110,7 @@ mi_ignore_effective_ref() {
     dotfile) mi_dotfile_ref "$id" ;;
     oh_my_zsh) mi_oh_my_zsh_ref ;;
     xcode) mi_xcode_ref ;;
+    github_project) mi_github_project_ref "$id" "$path" ;;
     manual) mi_manual_app_ref "$id" "$name" "$path" ;;
   esac
 }
@@ -205,6 +212,14 @@ mi_ignore_inventory_rows() {
       "dotfile" + "|" + ".dotfiles.files[" + (.key | tostring) + "]" + "|" +
       (.value.ref // "" | tostring) + "|" + (.value.path // "" | tostring) + "|" + (.value.path // "" | tostring) + "|" +
       (.value.backup_path // "" | tostring) + "|" + "" + "|"
+  ' "$inventory" 2>/dev/null
+  yq e -r '
+    (.github_projects.repos // []) | to_entries[]? |
+      "github_project" + "|" + ".github_projects.repos[" + (.key | tostring) + "]" + "|" +
+      (.value.ref // "" | tostring) + "|" + (.value.owner_repo // "" | tostring) + "|" + (.value.name // "" | tostring) + "|" +
+      (.value.relative_path // "" | tostring) + "|" +
+      (.value.clone_url // "" | tostring) + "|" +
+      (.value.origin_url // "" | tostring)
   ' "$inventory" 2>/dev/null
   yq e -r '
     .oh_my_zsh | select(type == "!!map") |
@@ -325,6 +340,8 @@ mi_ignore_apply_config_to_inventory() {
       (.pipx.packages[]? | select(.ref == strenv(MI_IGNORE_REF)) | .ignored_at) = strenv(MI_IGNORE_AT) |
       (.dotfiles.files[]? | select(.ref == strenv(MI_IGNORE_REF)) | .ignored) = true |
       (.dotfiles.files[]? | select(.ref == strenv(MI_IGNORE_REF)) | .ignored_at) = strenv(MI_IGNORE_AT) |
+      (.github_projects.repos[]? | select(.ref == strenv(MI_IGNORE_REF)) | .ignored) = true |
+      (.github_projects.repos[]? | select(.ref == strenv(MI_IGNORE_REF)) | .ignored_at) = strenv(MI_IGNORE_AT) |
       (.oh_my_zsh | select(.ref == strenv(MI_IGNORE_REF)) | .ignored) = true |
       (.oh_my_zsh | select(.ref == strenv(MI_IGNORE_REF)) | .ignored_at) = strenv(MI_IGNORE_AT) |
       (.xcode | select(.ref == strenv(MI_IGNORE_REF)) | .ignored) = true |

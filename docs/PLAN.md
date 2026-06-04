@@ -48,6 +48,7 @@ Main options:
 - `--xcode`, `-X`
 - `--dotfiles`, `-D`
 - `--manual-apps`, `-M`
+- `--github-projects`
 - `--interactive`, `-I`
 - `--yes`, `-y`
 - `--no`, `-n`
@@ -60,6 +61,7 @@ Main options:
 - `--report-format`, `-j`
 - `--skip-report`, `-R`
 - `--skip-prepare`, `--prepare-only`, `--pause-after-prepare`
+- `--restore-step-mode`
 - `--caffeinate`, `--resume-file`, `--reset-resume`, `--check-only`
 
 Short-option behavior:
@@ -75,6 +77,7 @@ Backup options:
 - `--manual-brew-match=ask|never|all`
 - `--versions=true|false`, `-V true|false`
 - `--dotfiles-path <path>`, `-F <path>`
+- `--github-projects-root <absolute-path>`, `-G <absolute-path>`
 - `--output <path>`, `-o <path>`
 
 Restore options:
@@ -112,14 +115,21 @@ List options:
 Use three YAML files:
 
 - Config: source enablement, restore policy, matching policy, dotfile allowlist.
-- Wizard config: declarative menu labels, ordering, visibility, and defaults for known wizard flows/prompts/sources, including backup config handling and restore config use.
+- Wizard config: declarative menu labels, ordering, visibility, and defaults for known wizard flows/prompts/sources, including backup config handling, GitHub projects folder prompting, restore preflight, restore step pacing, and restore config use.
 - Inventory: generated machine state.
 
-Inventory includes host metadata, normalized currently installed App Store apps with matched paths when available, Homebrew taps/top-level formulae/casks, npm/pip/pipx packages, Oh My Zsh state, Xcode and Command Line Tools state, explicit allowlisted dotfiles that exist at backup time, and manual apps with optional Homebrew cask candidates. Restore-relevant rows include stable refs such as `appstore:<id>`, `brew_formula:<formula>`, `brew_cask:<cask>`, `npm:<package>`, `dotfile:<path-hash>`, and `manual:<bundle_id>` so commands can target them safely. Homebrew casks keep the installable cask token and may include matched app display name, path, and app version for reports.
+Inventory includes host metadata, normalized currently installed App Store apps with matched paths when available, Homebrew taps/top-level formulae/casks, npm/pip/pipx packages, Oh My Zsh state, Xcode and Command Line Tools state, explicit allowlisted dotfiles that exist at backup time, opt-in GitHub project metadata, and manual apps with optional Homebrew cask candidates. Restore-relevant rows include stable refs such as `appstore:<id>`, `brew_formula:<formula>`, `brew_cask:<cask>`, `npm:<package>`, `dotfile:<path-hash>`, `github_project:<owner>/<repo>`, and `manual:<bundle_id>` so commands can target them safely. Homebrew casks keep the installable cask token and may include matched app display name, path, and app version for reports.
 
 Local and iCloud backups also generate `backup-list.md` and `README.md` next to `mac-setup.backup.yml`. The list is derived from the YAML snapshot and must not include copied dotfile contents, secrets, or raw command output. The README contains restore instructions and a backup folder file map.
 
 Wizard config is committed as `mac-setup.wizard.yml`. It can enable/disable the built-in backup and restore flows, relabel/reorder known sources, choose defaults, and hide known prompts. It must not define arbitrary commands, hooks, executable steps, or user-defined restore behavior.
+
+GitHub projects:
+
+- Disabled by default and opt-in via `--github-projects=true` plus absolute `--github-projects-root` paths.
+- Backup records repo metadata and sanitized clone URLs only, not repository contents.
+- Restore creates parent directories and clones missing repos only.
+- Existing Git repos and existing non-Git paths are skipped; restore must not fetch, pull, reset, clean, overwrite, or delete project folders.
 
 Manual app matching:
 
@@ -136,6 +146,7 @@ Safety rules:
 
 - Restore is additive-only in v1.
 - Restore runs prepare preflight by default unless `--skip-prepare=true`.
+- Restore step pause mode prompts before each selected section with `next`, `skip`, or `abort`; default restore remains automatic.
 - Prepare/restore create durable resume state under `~/.mac-setup/resume.yml`.
 - `--dry-run` prevents snapshot writes, backup-list/README writes, iCloud history moves, Gist writes, dotfile copies, downloads, installs, upgrades, license acceptance, overwrites, and shell changes.
 - `config generate --dry-run` reports the target path without writing the user config.
@@ -176,14 +187,14 @@ Behavior:
 
 - Parse CLI flags first, merge config defaults second, then command defaults.
 - `config generate -o <path>` writes starter YAML config.
-- `wizard` uses numbered menus and allowlisted YAML customization from the committed `mac-setup.wizard.yml`, generates missing backup-folder user config by default, asks whether to create new/overwrite/use existing config when one exists, offers restore config use when available, then dispatches to existing backup/restore flags.
+- `wizard` uses numbered menus and allowlisted YAML customization from the committed `mac-setup.wizard.yml`, generates missing backup-folder user config by default, asks whether to create new/overwrite/use existing config when one exists, offers restore config use when available, supports direct `wizard backup`/`wizard restore` entry, prompts for restore preflight and step pacing, then dispatches to existing backup/restore flags.
 - `doctor` checks local package managers, Gist auth, App Store login, Oh My Zsh, and Xcode state.
 - Default backup/restore uses the iCloud Drive `Mac Setup Snapshot` bundle when available.
-- `prepare` checks Xcode CLT, Homebrew, yq, mas, pipx, GitHub auth, and App Store login in order.
+- `prepare` checks Xcode CLT, Homebrew, yq, git when GitHub project restore is enabled, mas, pipx, GitHub auth, and App Store login in order.
 - Gist auth order: explicit token, token env var, `gh auth status`, then interactive `gh auth login` if allowed.
 - Gist operations prefer `gh gist`; token fallback uses the GitHub REST API.
 - `backup` gathers enabled sources, records versions, writes YAML atomically, and supports `--update`.
-- `restore` runs endpoint preflight, prepare preflight, loads the setup snapshot, checks existing installs, then skips/prompts/overwrites according to flags.
+- `restore` runs endpoint preflight, prepare preflight, loads the setup snapshot, checks existing installs, then skips/prompts/clones missing repos according to flags without destructive cleanup.
 - Oh My Zsh restore installs only when missing and uses `RUNZSH=no CHSH=no KEEP_ZSHRC=yes`.
 - `.zshrc` restore is handled only through dotfiles.
 - Xcode CLT restore uses `xcode-select --install` when missing.
@@ -200,12 +211,13 @@ Required coverage:
 - Gist auth and dry-run behavior.
 - Safety helpers.
 - Backup setup snapshot generation for every source.
+- GitHub project URL sanitization and clone-missing-only restore behavior.
 - Manual app cask matching.
 - Restore dry-run and existing detection.
 - Prepare dry-run, resume/continue/status, caffeinate, and restore preflight behavior.
 - Oh My Zsh and Xcode detection.
 - Prompt policy.
-- Wizard no-args behavior, non-interactive fallback, config generation, allowlisted menu config, and compiled backup/restore flags.
+- Wizard no-args/direct-flow behavior, non-interactive fallback, config generation, allowlisted menu config, restore preflight/step pacing, and compiled backup/restore flags.
 - Dotfile copy/restore policy.
 
 Acceptance commands:

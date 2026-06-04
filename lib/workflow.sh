@@ -26,6 +26,10 @@ mi_workflow_build_steps() {
   MI_WORKFLOW_STEPS="check_xcode_cli
 install_homebrew
 install_yq"
+  if [ "$MI_GITHUB_PROJECTS" = "true" ]; then
+    MI_WORKFLOW_STEPS="${MI_WORKFLOW_STEPS}
+check_git"
+  fi
   if [ "$MI_APPS" = "true" ] || [ "$MI_XCODE" = "true" ]; then
     MI_WORKFLOW_STEPS="${MI_WORKFLOW_STEPS}
 install_mas"
@@ -314,6 +318,16 @@ mi_workflow_step_install_yq() {
   [ "$MI_CHECK_ONLY" = "true" ] && { mi_warn "yq: missing"; return 0; }
   [ "$MI_DRY_RUN" = "true" ] && { mi_info "dry-run: would install yq"; return 0; }
   mi_install_brew_tool_if_allowed yq yq
+}
+
+mi_workflow_step_check_git() {
+  mi_action_intro "Check Git" "Required to restore GitHub project repositories." "git --version"
+  if mi_has git; then
+    mi_info "git: found"
+    return 0
+  fi
+  mi_warn "git: missing"
+  return 0
 }
 
 mi_workflow_step_install_mas() {

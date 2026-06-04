@@ -27,6 +27,7 @@ mi_args_init() {
   MI_XCODE_EXPLICIT="false"
   MI_DOTFILES_EXPLICIT="false"
   MI_MANUAL_APPS_EXPLICIT="false"
+  MI_GITHUB_PROJECTS_EXPLICIT="false"
   MI_TARGET=""
   MI_SOURCE=""
   MI_TARGET_EXPLICIT="false"
@@ -57,6 +58,7 @@ mi_args_init() {
   MI_XCODE="true"
   MI_DOTFILES="true"
   MI_MANUAL_APPS="true"
+  MI_GITHUB_PROJECTS="false"
   MI_INTERACTIVE="true"
   MI_YES="false"
   MI_NO="false"
@@ -69,6 +71,7 @@ mi_args_init() {
   MI_RECORD_VERSIONS="true"
   MI_SKIP_EXISTING="true"
   MI_OVERWRITE="false"
+  MI_RESTORE_STEP_MODE="auto"
   MI_USE_VERSIONS="false"
   MI_INSTALL_MISSING_TOOLS="true"
   MI_LOGIN_CHECK="true"
@@ -92,6 +95,7 @@ mi_args_init() {
   MI_SKIP_REPORT="false"
   MI_SECTIONS=""
   MI_DOTFILES_PATHS=""
+  MI_GITHUB_PROJECTS_ROOTS=""
   MI_IGNORE_TOKEN=""
 }
 
@@ -151,6 +155,11 @@ mi_set_command_token() {
     MI_WIZARD_SUBCOMMAND="$token"
     return 0
   fi
+  if { [ "$MI_COMMAND" = "backup" ] || [ "$MI_COMMAND" = "restore" ]; } && [ "$token" = "wizard" ] && [ -z "$MI_SUBCOMMAND" ]; then
+    MI_SUBCOMMAND="$MI_COMMAND"
+    MI_COMMAND="wizard"
+    return 0
+  fi
   if { [ "$MI_COMMAND" = "ignore" ] || [ "$MI_COMMAND" = "unignore" ]; } && [ -z "$MI_IGNORE_TOKEN" ]; then
     MI_IGNORE_TOKEN="$token"
     return 0
@@ -161,7 +170,7 @@ mi_set_command_token() {
 
 mi_long_option_needs_value() {
   case "$1" in
-    --config|--wizard-config|--inventory|--target|--source|--icloud-folder|--icloud-root|--skip-prepare|--pause-after-prepare|--caffeinate|--resume-file|--check-only|--apps|--brew|--npm|--pip|--pipx|--oh-my-zsh|--xcode|--dotfiles|--manual-apps|--interactive|--check-manual-brew|--manual-brew-match|--versions|--dotfiles-path|--output|--skip-existing|--overwrite|--use-versions|--install-missing-tools|--login-check|--appstore-login|--section|--format|--gist-id|--gist-create|--gist-visibility|--gist-file|--gist-config-file|--github-login|--github-token|--github-token-env|--command-timeout|--report|--report-format)
+    --config|--wizard-config|--inventory|--target|--source|--icloud-folder|--icloud-root|--skip-prepare|--pause-after-prepare|--caffeinate|--resume-file|--check-only|--apps|--brew|--npm|--pip|--pipx|--oh-my-zsh|--xcode|--dotfiles|--manual-apps|--github-projects|--interactive|--check-manual-brew|--manual-brew-match|--versions|--dotfiles-path|--github-projects-root|--output|--skip-existing|--overwrite|--restore-step-mode|--use-versions|--install-missing-tools|--login-check|--appstore-login|--section|--format|--gist-id|--gist-create|--gist-visibility|--gist-file|--gist-config-file|--github-login|--github-token|--github-token-env|--command-timeout|--report|--report-format)
       return 0
       ;;
     *)
@@ -214,6 +223,7 @@ mi_set_long_option() {
     --xcode) mi_set_bool_var MI_XCODE "$value" || return 2; MI_XCODE_EXPLICIT="true" ;;
     --dotfiles) mi_set_bool_var MI_DOTFILES "$value" || return 2; MI_DOTFILES_EXPLICIT="true" ;;
     --manual-apps) mi_set_bool_var MI_MANUAL_APPS "$value" || return 2; MI_MANUAL_APPS_EXPLICIT="true" ;;
+    --github-projects) mi_set_bool_var MI_GITHUB_PROJECTS "$value" || return 2; MI_GITHUB_PROJECTS_EXPLICIT="true" ;;
     --interactive) mi_set_bool_var MI_INTERACTIVE "$value" || return 2 ;;
     --yes) MI_YES="true" ;;
     --no) MI_NO="true" ;;
@@ -229,9 +239,14 @@ mi_set_long_option() {
     --versions) mi_set_bool_var MI_RECORD_VERSIONS "$value" || return 2 ;;
     --dotfiles-path) MI_DOTFILES_PATHS="${MI_DOTFILES_PATHS}${MI_DOTFILES_PATHS:+
 }$value" ;;
+    --github-projects-root) MI_GITHUB_PROJECTS_ROOTS="${MI_GITHUB_PROJECTS_ROOTS}${MI_GITHUB_PROJECTS_ROOTS:+
+}$value" ;;
     --output) MI_OUTPUT="$value"; MI_INVENTORY="$value"; MI_INVENTORY_EXPLICIT="true" ;;
     --skip-existing) mi_set_bool_var MI_SKIP_EXISTING "$value" || return 2 ;;
     --overwrite) mi_set_bool_var MI_OVERWRITE "$value" || return 2 ;;
+    --restore-step-mode)
+      case "$value" in auto|pause) MI_RESTORE_STEP_MODE="$value" ;; *) mi_error "--restore-step-mode expects auto or pause"; return 2 ;; esac
+      ;;
     --use-versions) mi_set_bool_var MI_USE_VERSIONS "$value" || return 2 ;;
     --install-missing-tools) mi_set_bool_var MI_INSTALL_MISSING_TOOLS "$value" || return 2; MI_INSTALL_MISSING_TOOLS_EXPLICIT="true" ;;
     --login-check) mi_set_bool_var MI_LOGIN_CHECK "$value" || return 2 ;;
@@ -276,7 +291,7 @@ mi_set_long_option() {
 
 mi_short_option_needs_value() {
   case "$1" in
-    c|i|A|B|N|P|Q|O|X|D|M|I|C|V|F|o|s|w|U|T|L|a|S|f|g|t|r|j)
+    c|i|A|B|N|P|Q|O|X|D|M|I|C|V|F|G|o|s|w|U|T|L|a|S|f|g|t|r|j)
       return 0
       ;;
     *)
@@ -298,6 +313,7 @@ mi_short_to_long() {
     X) printf '%s' --xcode ;;
     D) printf '%s' --dotfiles ;;
     M) printf '%s' --manual-apps ;;
+    G) printf '%s' --github-projects-root ;;
     I) printf '%s' --interactive ;;
     y) printf '%s' --yes ;;
     n) printf '%s' --no ;;

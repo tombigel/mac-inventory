@@ -21,3 +21,4 @@ find bin lib -type f \( -name '*.sh' -o -name 'mac-setup' \) -print0 | xargs -0 
 - Dry-run means no user-state mutation.
 - Resume state lives under `~/.mac-setup/resume.yml`.
 - Remote installers are downloaded first; never pipe directly into a shell.
+- GitHub project restore clones missing repos only; never fetch, pull, reset, clean, overwrite, or delete existing project folders.

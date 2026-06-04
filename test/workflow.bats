@@ -50,6 +50,51 @@ YAML
   [[ "$output" != *"Counts:"* ]]
 }
 
+@test "restore pause mode can skip selected sections" {
+  command -v yq >/dev/null 2>&1 || skip "yq is required for restore"
+  run env PROJECT_ROOT="$PROJECT_ROOT" LOG="$BATS_TEST_TMPDIR/restore.log" bash -c '
+    . "$PROJECT_ROOT/lib/common.sh"
+    . "$PROJECT_ROOT/lib/args.sh"
+    . "$PROJECT_ROOT/lib/safety.sh"
+    . "$PROJECT_ROOT/lib/inventory.sh"
+    mi_args_init
+    MI_INVENTORY="$PWD/inventory.yml"
+    MI_APPS=false
+    MI_BREW=true
+    MI_NPM=true
+    MI_PIP=false
+    MI_PIPX=false
+    MI_OH_MY_ZSH=false
+    MI_XCODE=false
+    MI_DOTFILES=false
+    MI_MANUAL_APPS=false
+    MI_GITHUB_PROJECTS=false
+    MI_RESTORE_STEP_MODE=pause
+    cat >"$MI_INVENTORY" <<YAML
+version: 1
+brew:
+  formulae: []
+npm:
+  globals: []
+YAML
+    brew_restore() { printf "%s\n" brew >>"$LOG"; }
+    npm_restore() { printf "%s\n" npm >>"$LOG"; }
+    mi_prompt_available() { return 0; }
+    mi_restore_step_action() {
+      case "$1" in
+        brew) return 0 ;;
+        npm) return 1 ;;
+      esac
+    }
+    mi_inventory_restore_body
+    cat "$LOG"
+  '
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"brew"* ]]
+  [[ "$output" != *"npm"* ]]
+  [[ "$output" == *"restore: skipped npm globals"* ]]
+}
+
 @test "restore dry-run prompts for manual app cask candidates" {
   mock_command brew 'case "$1 $2 $3" in "list --cask candidate-app") exit 1 ;; *) exit 0 ;; esac'
   cat >"$BATS_TEST_TMPDIR/inventory.yml" <<'YAML'

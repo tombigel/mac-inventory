@@ -10,6 +10,7 @@ Mac Setup Snapshot helps rebuild a Mac by creating a YAML setup snapshot and per
 
 - `prepare`: check/install prerequisites.
 - `restore`: run prepare preflight, then restore the setup snapshot.
+- `wizard restore`: guided restore; can check requirements early and optionally pause before each restore section.
 - `continue`: resume from `~/.mac-setup/resume.yml`.
 - `status`: inspect resume state.
 - `backup`: generate setup snapshot.
@@ -17,6 +18,8 @@ Mac Setup Snapshot helps rebuild a Mac by creating a YAML setup snapshot and per
 Use `--appstore-login=skip|prompt|pause|require` when testing App Store flows. Never ask for or store Apple ID credentials.
 
 Backup writes `mac-setup.backup.yml`, `backup-list.md`, and `README.md` for local and iCloud targets. The Markdown list and README must stay free of copied dotfile contents, secrets, tokens, and raw command output.
+
+GitHub projects are opt-in. Backup records repo metadata and sanitized clone URLs only, never repository contents. Restore may clone missing repos, but must not fetch, pull, reset, clean, overwrite, or delete existing project folders.
 
 Use `--report`, `--report-format`, and `--skip-report` when validating process-report behavior. Reports must summarize outcomes without storing secrets, copied dotfile contents, tokens, or raw command output.
 
@@ -28,6 +31,7 @@ Use `--report`, `--report-format`, and `--skip-report` when validating process-r
 - No secrets in logs, docs, tests, setup snapshot examples, or resume files.
 - dry-run mode must not mutate user state.
 - Resume files must contain only workflow metadata.
+- GitHub project URLs must be sanitized before being written to snapshots, reports, docs, or tests.
 
 ## Testing Guidance
 
@@ -70,6 +74,8 @@ mac-setup continue --dry-run
 - Manual app de-duplication against App Store receipts and Homebrew casks, including punctuation-normalized cask names such as `firefox@nightly`.
 - Not-yet-installed Homebrew cask replacement candidates for standalone manual apps, including `brew info --cask` validation to avoid fuzzy search false positives.
 - Restore prompting/install behavior for manual app `brew_cask_candidate` values.
+- Restore step pacing and wizard preflight choices.
+- GitHub project recursive discovery, URL sanitization, and clone-missing-only restore.
 - App Store login policy interactions with Xcode restore.
 - Process report accuracy and secret-free output.
 - Xcode CLT GUI prompts.

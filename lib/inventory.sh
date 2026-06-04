@@ -12,6 +12,7 @@ mi_source_enabled() {
     xcode) [ "$MI_XCODE" = "true" ] ;;
     dotfiles) [ "$MI_DOTFILES" = "true" ] ;;
     manual_apps) [ "$MI_MANUAL_APPS" = "true" ] ;;
+    github_projects) [ "$MI_GITHUB_PROJECTS" = "true" ] ;;
     *) return 1 ;;
   esac
 }
@@ -54,6 +55,7 @@ mi_section_display_name() {
   case "$1" in
     apps) printf 'App Store apps' ;;
     manual_apps) printf 'manual apps' ;;
+    github_projects) printf 'GitHub projects' ;;
     brew) printf 'Homebrew' ;;
     npm) printf 'npm globals' ;;
     pip) printf 'pip packages' ;;
@@ -67,7 +69,7 @@ mi_section_display_name() {
 
 mi_sections_for_backup() {
   local section
-  for section in apps manual_apps brew npm pip pipx oh_my_zsh xcode dotfiles; do
+  for section in apps manual_apps brew npm pip pipx oh_my_zsh xcode dotfiles github_projects; do
     if mi_source_enabled "$section" && mi_section_selected "$section"; then
       printf '%s\n' "$section"
     fi
@@ -76,7 +78,7 @@ mi_sections_for_backup() {
 
 mi_sections_for_restore() {
   local section
-  for section in apps brew npm pip pipx oh_my_zsh xcode dotfiles manual_apps; do
+  for section in apps brew npm pip pipx oh_my_zsh xcode dotfiles github_projects manual_apps; do
     if mi_source_enabled "$section" && mi_section_selected "$section"; then
       printf '%s\n' "$section"
     fi
@@ -186,6 +188,7 @@ mi_restore_welcome() {
 mi_inventory_backup() {
   local tmp tmp_dry
   mi_backup_welcome
+  mi_inventory_backup_preflight || return 1
 
   if [ "$MI_DRY_RUN" = "true" ]; then
     mi_info "dry-run: would write setup snapshot to $MI_INVENTORY"
@@ -211,6 +214,19 @@ mi_inventory_backup() {
   mi_inventory_write_backup_readme "$MI_INVENTORY"
 }
 
+mi_inventory_backup_preflight() {
+  local section fn
+  while IFS= read -r section; do
+    [ -n "$section" ] || continue
+    fn="${section}_backup_preflight"
+    if declare -F "$fn" >/dev/null 2>&1; then
+      "$fn" || return 1
+    fi
+  done <<EOF
+$(mi_sections_for_backup)
+EOF
+}
+
 mi_inventory_emit_backup() {
   local inventory_out="$1"
   {
@@ -234,6 +250,7 @@ mi_inventory_emit_backup() {
   mi_inventory_emit_or_copy "$inventory_out" oh_my_zsh oh_my_zsh_backup || return 1
   mi_inventory_emit_or_copy "$inventory_out" xcode xcode_backup || return 1
   mi_inventory_emit_or_copy "$inventory_out" dotfiles dotfiles_backup || return 1
+  mi_inventory_emit_or_copy "$inventory_out" github_projects github_projects_backup || return 1
   mi_cleanup_inventory_temp_files
 }
 
@@ -367,6 +384,7 @@ mi_inventory_section_count() {
     pipx) yq e '(.pipx.packages // []) | length' "$section_file" 2>/dev/null ;;
     manual_apps) yq e '(.manual_apps.apps // []) | length' "$section_file" 2>/dev/null ;;
     dotfiles) yq e '(.dotfiles.files // []) | length' "$section_file" 2>/dev/null ;;
+    github_projects) yq e '(.github_projects.repos // []) | length' "$section_file" 2>/dev/null ;;
     *) printf '' ;;
   esac
 }
@@ -677,6 +695,12 @@ mi_inventory_list_md() {
     "| " + (.path // "" | tostring) + " | " + (.exists // "" | tostring) + " | " + (.backup_path // "" | tostring) + " | " + (.ignored // false | tostring) + " | " + (.ref // "" | tostring) + " |"
   '
 
+  mi_inventory_md_section_selected github_projects && mi_inventory_md_table "GitHub Projects" "| Name | Relative Path | Branch | Dirty | Ahead | Behind | Ignored | Ref |
+| --- | --- | --- | --- | --- | --- | --- | --- |" '
+    (.github_projects.repos // [])[]? |
+    "| " + (.name // "" | tostring) + " | " + (.relative_path // "" | tostring) + " | " + (.current_branch // "" | tostring) + " | " + (.dirty // false | tostring) + " | " + (.ahead // 0 | tostring) + " | " + (.behind // 0 | tostring) + " | " + (.ignored // false | tostring) + " | " + (.ref // "" | tostring) + " |"
+  '
+
   mi_inventory_md_section_selected manual_apps && mi_inventory_md_table "Manual Apps" "| Name | Path | Version | Brew Cask | Ignored | Ref |
 | --- | --- | --- | --- | --- | --- |" '
     (.manual_apps.apps // [])[]? |
@@ -701,15 +725,89 @@ mi_inventory_restore_body() {
   [ -f "$MI_INVENTORY" ] || { mi_error "setup snapshot not found: $MI_INVENTORY"; return 1; }
   mi_require_yq || return 1
 
-  mi_restore_section apps appstore_restore || return 1
-  mi_restore_section brew brew_restore || return 1
-  mi_restore_section npm npm_restore || return 1
-  mi_restore_section pip pip_restore || return 1
-  mi_restore_section pipx pipx_restore || return 1
-  mi_restore_section oh_my_zsh oh_my_zsh_restore || return 1
-  mi_restore_section xcode xcode_restore || return 1
-  mi_restore_section dotfiles dotfiles_restore || return 1
-  mi_restore_section manual_apps manual_apps_restore || return 1
+  if [ "${MI_RESTORE_STEP_MODE:-auto}" = "pause" ]; then
+    mi_inventory_restore_body_pause
+    return $?
+  fi
+  mi_inventory_restore_body_auto
+}
+
+mi_restore_section_function() {
+  case "$1" in
+    apps) printf '%s\n' appstore_restore ;;
+    brew) printf '%s\n' brew_restore ;;
+    npm) printf '%s\n' npm_restore ;;
+    pip) printf '%s\n' pip_restore ;;
+    pipx) printf '%s\n' pipx_restore ;;
+    oh_my_zsh) printf '%s\n' oh_my_zsh_restore ;;
+    xcode) printf '%s\n' xcode_restore ;;
+    dotfiles) printf '%s\n' dotfiles_restore ;;
+    github_projects) printf '%s\n' github_projects_restore ;;
+    manual_apps) printf '%s\n' manual_apps_restore ;;
+    *) return 1 ;;
+  esac
+}
+
+mi_inventory_restore_body_auto() {
+  local section fn
+  while IFS= read -r section; do
+    [ -n "$section" ] || continue
+    fn="$(mi_restore_section_function "$section")" || continue
+    mi_restore_section "$section" "$fn" || return 1
+  done <<EOF
+$(mi_sections_for_restore)
+EOF
+}
+
+mi_inventory_restore_body_pause() {
+  local section fn action
+  if ! mi_prompt_available; then
+    mi_warn "restore step pause mode requires an interactive terminal; continuing automatically"
+    mi_inventory_restore_body_auto
+    return $?
+  fi
+  while IFS= read -r section; do
+    [ -n "$section" ] || continue
+    fn="$(mi_restore_section_function "$section")" || continue
+    mi_restore_step_action "$section"
+    action=$?
+    case "$action" in
+      0)
+        mi_restore_section "$section" "$fn" || return 1
+        ;;
+      1)
+        mi_info "restore: skipped $(mi_section_display_name "$section")"
+        ;;
+      2)
+        mi_error "restore aborted before $(mi_section_display_name "$section")"
+        return 1
+        ;;
+    esac
+  done <<EOF
+$(mi_sections_for_restore)
+EOF
+}
+
+mi_restore_step_action() {
+  local section="$1"
+  local answer label
+  label="$(mi_section_display_name "$section")"
+  while :; do
+    mi_live_finish
+    if [ -t 0 ]; then
+      printf 'Next restore step: %s [next/skip/abort]: ' "$label" >&2
+      IFS= read -r answer
+    else
+      printf 'Next restore step: %s [next/skip/abort]: ' "$label" >/dev/tty
+      IFS= read -r answer </dev/tty
+    fi
+    case "$answer" in
+      ""|n|N|next|NEXT) return 0 ;;
+      s|S|skip|SKIP) return 1 ;;
+      a|A|abort|ABORT) return 2 ;;
+      *) mi_warn "enter next, skip, or abort" ;;
+    esac
+  done
 }
 
 mi_restore_section() {

@@ -42,11 +42,13 @@ For a guided flow, run:
 
 ```bash
 mac-setup wizard
+mac-setup wizard backup
+mac-setup wizard restore
 ```
 
 In an interactive terminal, running `mac-setup` with no arguments opens the same wizard. In scripts and other non-interactive contexts, no arguments still print help.
 
-The wizard asks for backup or restore, dry-run mode, storage endpoint, config handling, enabled sources, and key restore policy choices. It then runs the equivalent `backup` or `restore` command with normal safety rules.
+The wizard asks for backup or restore, dry-run mode, storage endpoint, config handling, enabled sources, and key restore policy choices. Direct `wizard backup` and `wizard restore` forms skip the first workflow picker. Restore wizard mode checks core requirements early and can pause before each restore section for `next`, `skip`, or `abort`. It then runs the equivalent `backup` or `restore` command with normal safety rules.
 
 Create or update the setup bundle in iCloud Drive:
 
@@ -89,7 +91,7 @@ Then run the additive restore:
 ./bin/mac-setup restore --appstore-login=pause
 ```
 
-`restore` runs `prepare` automatically unless `--skip-prepare=true` is passed. `prepare` checks or installs clean-Mac prerequisites such as Xcode Command Line Tools, Homebrew, `yq`, `mas`, `pipx`, GitHub auth, and App Store access readiness.
+`restore` runs `prepare` automatically unless `--skip-prepare=true` is passed. `prepare` checks or installs clean-Mac prerequisites such as Xcode Command Line Tools, Homebrew, `yq`, `git` for GitHub project restores, `mas`, `pipx`, GitHub auth, and App Store access readiness.
 
 If the process is interrupted, inspect or resume it:
 
@@ -129,7 +131,7 @@ mac-setup restore --dry-run --report reports/restore.md --report-format md
 mac-setup backup --report reports/backup.yml --report-format yaml
 ```
 
-Wizard menus are controlled by the tracked repo file `mac-setup.wizard.yml`. Edit that file to reorder, hide, relabel, and set defaults for known backup/restore sources and prompts, including backup config handling and restore config use. It cannot define shell commands, hooks, arbitrary steps, or executable restore behavior.
+Wizard menus are controlled by the tracked repo file `mac-setup.wizard.yml`. Edit that file to reorder, hide, relabel, and set defaults for known backup/restore sources and prompts, including backup config handling, restore preflight, restore step pacing, and restore config use. It cannot define shell commands, hooks, arbitrary steps, or executable restore behavior.
 
 The user config is separate: backup wizard mode keeps `mac-setup.config.yml` in the selected backup folder. If it is missing, the wizard generates it by default. If it already exists, the wizard asks whether to create a new timestamped config, overwrite the existing one, or use the existing one.
 
@@ -139,6 +141,10 @@ Useful wizard commands:
 
 ```bash
 mac-setup wizard
+mac-setup wizard backup
+mac-setup wizard restore
+mac-setup backup wizard
+mac-setup restore wizard
 mac-setup --wizard-config ./mac-setup.wizard.yml wizard
 ```
 
@@ -155,9 +161,13 @@ By default, `backup` captures:
 - Explicitly allowlisted dotfiles and config files that exist at backup time. Defaults include common shell, Git, editor, terminal, and low-risk CLI config files; see `docs/MANUAL.md` for the full list.
 - Manual apps from `/Applications` and `~/Applications`, excluding apps already represented by App Store receipts or installed Homebrew casks. Other standalone apps are checked for not-yet-installed Homebrew cask replacement candidates and record the candidate only when `brew info --cask` confirms it is installable, unless the migration policy accepts it into the Homebrew cask list.
 
+GitHub project folders are opt-in and disabled by default. Enable them with `--github-projects=true --github-projects-root /Users/you/Projects` or through the backup wizard. Backup records repository metadata and sanitized clone URLs, not repository contents.
+
 Disable categories with flags such as `--apps=false`, `--brew=false`, or `--dotfiles=false`.
 
 During restore, manual apps with a recorded `brew_cask_candidate` are prompted as Homebrew cask installs by default. Non-interactive restore reports the candidate without installing; pass `--yes` to install candidate casks automatically. Manual apps without candidates still require manual restore.
+
+During restore, GitHub projects clone missing repositories only. Existing repos are skipped; restore does not fetch, pull, reset, clean, overwrite, or delete project folders.
 
 Use `mac-setup ignore <ref>` to keep an app visible in the snapshot and `backup-list.md` while preventing restore from reinstalling or prompting for it. The ignore rule is also saved to config so future backups keep the same app ignored. Use `mac-setup unignore <ref>` to restore it again.
 
@@ -169,6 +179,7 @@ Other useful dotfiles you may want to add explicitly with `-F` include `~/.confi
 mac-setup backup -udq
 mac-setup backup --check-manual-brew=true --manual-brew-match=ask
 mac-setup backup --check-manual-brew=true --manual-brew-match=all -y
+mac-setup backup --github-projects=true --github-projects-root /Users/you/Projects
 
 mac-setup list -S brew
 mac-setup list -f md

@@ -16,6 +16,10 @@ mac-setup status [options]
 mac-setup list [options]
 mac-setup doctor [options]
 mac-setup wizard [options]
+mac-setup wizard backup [options]
+mac-setup wizard restore [options]
+mac-setup backup wizard [options]
+mac-setup restore wizard [options]
 mac-setup config generate [options]
 mac-setup gist pull [options]
 mac-setup gist push [options]
@@ -104,7 +108,7 @@ mac-setup backup --check-manual-brew=true --manual-brew-match=ask
 mac-setup backup --gist-create=true --gist-push
 ```
 
-By default, backup includes App Store apps, Homebrew, npm globals, pip, pipx, Oh My Zsh, Xcode, dotfiles, and manual apps.
+By default, backup includes App Store apps, Homebrew, npm globals, pip, pipx, Oh My Zsh, Xcode, dotfiles, and manual apps. GitHub projects are available as an opt-in source and are disabled by default.
 
 Backup and restore print a welcome message, the next step, progress for enabled sections, and a friendly terminal summary by default. In an interactive terminal, progress updates in place and uses terminal-palette ANSI styling: bold headings, dim secondary text, green success, red alerts, and yellow dry-run markers. Manual app scanning also updates the current app being checked when Homebrew cask matching is enabled. Non-TTY output, CI, `TERM=dumb`, `NO_COLOR`, `--quiet`, and `--verbose` use plain stable output. Use `--quiet` to suppress the welcome, progress, and default summary. Use `--verbose` for command start/status lines, captured output counts, app indexing details, App Store parsing decisions, manual app matching decisions, and raw summary counts.
 
@@ -181,10 +185,11 @@ Prerequisite order:
 1. Xcode Command Line Tools.
 2. Homebrew.
 3. `yq`.
-4. `mas`, when App Store or Xcode restore is enabled.
-5. `pipx`, when pipx restore is enabled.
-6. GitHub auth, when Gist sync is enabled.
-7. App Store access through `mas list`, when `mas` is needed.
+4. `git`, when GitHub project restore is enabled.
+5. `mas`, when App Store or Xcode restore is enabled.
+6. `pipx`, when pipx restore is enabled.
+7. GitHub auth, when Gist sync is enabled.
+8. App Store access through `mas list`, when `mas` is needed.
 
 ### `continue`
 
@@ -273,10 +278,16 @@ Start a guided backup or restore flow.
 
 ```bash
 mac-setup wizard
+mac-setup wizard backup
+mac-setup wizard restore
+mac-setup backup wizard
+mac-setup restore wizard
 mac-setup --wizard-config ./mac-setup.wizard.yml wizard
 ```
 
-The wizard uses numbered menus and comma/range source selection such as `1,3-5`, `all`, or `none`. Backup keeps the user config in the selected backup folder. If `mac-setup.config.yml` is missing there, the wizard generates it by default. If it already exists, the wizard asks whether to create a new timestamped config, overwrite the existing config, or use the existing config. Restore offers to use an existing config when one is found, and choosing no runs that restore without config. It compiles choices into the existing `backup` or `restore` flags and then runs that command, preserving additive restore, dry-run, endpoint, skip-existing, and prompt safety behavior.
+The `wizard backup`, `wizard restore`, `backup wizard`, and `restore wizard` forms skip the first workflow picker and open the requested guided flow directly.
+
+The wizard uses numbered menus and comma/range source selection such as `1,3-5`, `all`, or `none`. Backup keeps the user config in the selected backup folder. If `mac-setup.config.yml` is missing there, the wizard generates it by default. If it already exists, the wizard asks whether to create a new timestamped config, overwrite the existing config, or use the existing config. Restore checks core requirements before the later restore prompts; when tools are missing, it asks whether to run prepare preflight, skip preflight, or abort. Restore can also enable step pacing, which prompts before each selected restore section with `next`, `skip`, or `abort`. Restore offers to use an existing config when one is found, and choosing no runs that restore without config. It compiles choices into the existing `backup` or `restore` flags and then runs that command, preserving additive restore, dry-run, endpoint, skip-existing, and prompt safety behavior.
 
 The wizard dry-run prompt defaults to no for backup and yes for restore.
 
@@ -379,6 +390,7 @@ Available source flags:
 - `--xcode true|false`, `-X true|false`: Xcode and Command Line Tools state.
 - `--dotfiles true|false`, `-D true|false`: configured dotfiles.
 - `--manual-apps true|false`, `-M true|false`: apps from `/Applications` and `~/Applications`.
+- `--github-projects true|false`: recursive GitHub project metadata. Disabled by default.
 
 ### Prompt And Execution Policy
 
@@ -437,6 +449,12 @@ HOMEBREW_NO_ENV_HINTS=1
 `--skip-prepare true|false`
 
 Skip restore preflight. Default: `false` for `restore`.
+
+`--restore-step-mode auto|pause`
+
+Control restore section pacing. Default: `auto`.
+
+`pause` prompts before each selected restore section with `next`, `skip`, or `abort`. The wizard can enable this mode for guided restores; non-interactive restore falls back to automatic execution with a warning.
 
 `--prepare-only`
 
@@ -505,6 +523,24 @@ Manual app backup automatically omits apps already represented by App Store rece
 Homebrew cask snapshot rows include the installable cask token in `name`. When a matching `.app` bundle is found, backup also records `display_name`, `path`, and `app_version` so Markdown reports can show the real app name and location without changing restore behavior.
 
 During restore, manual apps with a recorded `brew_cask_candidate` are offered as Homebrew cask installs instead of being treated as plain manual-only items. Restore verifies each candidate with `brew info --cask` before prompting or installing, so stale or invalid candidates are skipped with a warning. Interactive restore prompts per valid candidate. `--yes` installs valid candidate casks automatically, `--no` skips them, and non-interactive restore reports the candidate with instructions to rerun interactively or pass `--yes`. Manual apps without candidates still produce manual restore warnings.
+
+`--github-projects true|false`
+
+Include recursive GitHub project discovery. Default: `false`.
+
+GitHub projects are opt-in because repo names and folder layout can be sensitive. When enabled, backup requires at least one absolute `--github-projects-root` path or `backup.github_projects.roots` config entry.
+
+`--github-projects-root <absolute-path>`, `-G <absolute-path>`
+
+Add a folder to scan recursively for GitHub repositories. Repeatable.
+
+```bash
+mac-setup backup --github-projects=true --github-projects-root /Users/you/Projects
+```
+
+Backup records GitHub repo metadata and sanitized clone URLs, not repository contents. HTTPS remote URLs with embedded credentials are written without the credential portion.
+
+Restore clones missing repos into the recorded root and relative path, or into the first `--github-projects-root` path when supplied during restore. Existing Git repos are skipped. Existing non-Git paths are reported and skipped. Restore does not fetch, pull, reset, clean, overwrite, or delete project folders.
 
 `--versions true|false`, `-V true|false`
 
@@ -617,6 +653,7 @@ Valid sections:
 - `oh_my_zsh`
 - `xcode`
 - `dotfiles`
+- `github_projects`
 - `manual_apps`
 
 ## List Options
@@ -759,6 +796,7 @@ sources:
   xcode: true
   dotfiles: true
   manual_apps: true
+  github_projects: false
 
 prepare:
   install_xcode_cli: prompt
@@ -771,6 +809,8 @@ prepare:
 backup:
   check_manual_brew: true
   manual_brew_match: ask
+  github_projects:
+    roots: []
   dotfiles:
     - ~/.zshrc
     - ~/.zprofile
@@ -851,6 +891,7 @@ wizard:
         storage: true
         config: true
         sources: true
+        github_projects_folder: true
         manual_brew_match: true
       sources:
         - id: apps
@@ -880,6 +921,9 @@ wizard:
         - id: manual_apps
           label: "manual apps"
           default: true
+        - id: github_projects
+          label: "GitHub projects"
+          default: false
 
     restore:
       enabled: true
@@ -887,10 +931,12 @@ wizard:
       default_source: icloud
       prompts:
         dry_run: true
+        preflight: true
         storage: true
         use_config: true
         sources: true
         appstore_login: true
+        step_mode: true
       sources:
         - id: apps
           label: "App Store apps"
@@ -898,9 +944,12 @@ wizard:
         - id: brew
           label: "Homebrew"
           default: true
+        - id: github_projects
+          label: "GitHub projects"
+          default: false
 ```
 
-The wizard config is committed to the repo and is not generated by normal commands. It is declarative and allowlisted. It can enable or disable the built-in backup/restore flows, relabel them, choose default local/iCloud/GitHub storage, show or hide known prompts, including backup config handling and restore config use, and reorder/relabel/default known sources. Unsupported flow IDs, source IDs, prompt IDs, and enum values are ignored with warnings. It cannot define arbitrary shell commands, hooks, custom restore steps, or executable behavior.
+The wizard config is committed to the repo and is not generated by normal commands. It is declarative and allowlisted. It can enable or disable the built-in backup/restore flows, relabel them, choose default local/iCloud/GitHub storage, show or hide known prompts, including backup config handling, the GitHub projects folder prompt, restore preflight, restore step pacing, and restore config use, and reorder/relabel/default known sources. Unsupported flow IDs, source IDs, prompt IDs, and enum values are ignored with warnings. It cannot define arbitrary shell commands, hooks, custom restore steps, or executable behavior.
 
 ## Setup Snapshot File
 
@@ -934,6 +983,13 @@ pipx: {}
 oh_my_zsh: {}
 xcode: {}
 dotfiles: {}
+github_projects:
+  roots:
+    - path: "/Users/you/Projects"
+  repos:
+    - ref: "github_project:owner/repo"
+      relative_path: "client/repo"
+      clone_url: "git@github.com:owner/repo.git"
 ```
 
 Generated setup snapshot files and copied dotfiles are ignored by Git by default.
@@ -946,6 +1002,7 @@ Restore rows use stable `ref` values:
 - `brew_cask:<cask>` for Homebrew cask rows.
 - `npm:<package>`, `pip:<package>`, and `pipx:<package>` for package rows.
 - `dotfile:<normalized-path>-<short-hash>` for dotfile rows.
+- `github_project:<owner>/<repo>` for GitHub project rows.
 - `manual:<bundle_id>` for manual app rows with bundle IDs.
 - `manual:<normalized-name>-<short-hash>` for manual app rows without bundle IDs.
 - `oh_my_zsh:state` and `xcode:state` for section-level restore state.

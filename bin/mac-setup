@@ -63,6 +63,10 @@ main() {
         mi_wizard_run
         rc=$?
         ;;
+      backup|restore)
+        mi_wizard_run "$MI_SUBCOMMAND"
+        rc=$?
+        ;;
       config)
         mi_error "wizard config is committed in the repo; edit mac-setup.wizard.yml or pass --wizard-config"
         rc=2

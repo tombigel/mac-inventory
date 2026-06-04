@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-MI_VERSION="0.7.0"
+MI_VERSION="0.8.0"
 MI_LIVE_LINE_ACTIVE="false"
 
 mi_color_enabled() {
@@ -395,6 +395,8 @@ Commands:
   list               List snapshot sections
   doctor             Check local readiness
   wizard             Guided backup/restore setup
+  wizard backup      Guided backup setup
+  wizard restore     Guided restore setup
   prepare            Install/check prerequisites before restore
   continue           Resume an interrupted workflow
   status             Show current resume checklist
@@ -420,6 +422,7 @@ Global options:
   -X, --xcode true|false              Include Xcode/CLT
   -D, --dotfiles true|false           Include dotfiles
   -M, --manual-apps true|false        Include manual apps
+      --github-projects true|false    Include recursive GitHub projects
   -I, --interactive true|false        Prompt for choices
   -y, --yes                           Accept safe prompts
   -n, --no                            Reject optional prompts
@@ -445,11 +448,13 @@ Backup options:
       --manual-brew-match ask|never|all
   -V, --versions true|false
   -F, --dotfiles-path <path>
+  -G, --github-projects-root <path>
   -o, --output <path>
 
 Restore options:
   -s, --skip-existing true|false
   -w, --overwrite true|false
+      --restore-step-mode auto|pause
   -U, --use-versions true|false
   -T, --install-missing-tools true|false
   -L, --login-check true|false

@@ -11,6 +11,7 @@ mi_config_apply() {
     [ "$MI_XCODE_EXPLICIT" = "true" ] || mi_config_bool sources.xcode MI_XCODE
     [ "$MI_DOTFILES_EXPLICIT" = "true" ] || mi_config_bool sources.dotfiles MI_DOTFILES
     [ "$MI_MANUAL_APPS_EXPLICIT" = "true" ] || mi_config_bool sources.manual_apps MI_MANUAL_APPS
+    [ "$MI_GITHUB_PROJECTS_EXPLICIT" = "true" ] || mi_config_bool sources.github_projects MI_GITHUB_PROJECTS
     mi_config_bool defaults.interactive MI_INTERACTIVE
     [ "$MI_INSTALL_MISSING_TOOLS_EXPLICIT" = "true" ] || mi_config_bool defaults.install_missing_tools MI_INSTALL_MISSING_TOOLS
     mi_config_bool defaults.record_versions MI_RECORD_VERSIONS
@@ -29,6 +30,7 @@ mi_config_apply() {
     [ "$MI_CHECK_MANUAL_BREW_EXPLICIT" = "true" ] || mi_config_bool backup.check_manual_brew MI_CHECK_MANUAL_BREW
     [ "$MI_MANUAL_BREW_MATCH_EXPLICIT" = "true" ] || mi_config_enum backup.manual_brew_match MI_MANUAL_BREW_MATCH ask never all
     [ -n "$MI_DOTFILES_PATHS" ] || mi_config_string_list backup.dotfiles MI_DOTFILES_PATHS
+    [ -n "$MI_GITHUB_PROJECTS_ROOTS" ] || mi_config_string_list backup.github_projects.roots MI_GITHUB_PROJECTS_ROOTS
     [ "$MI_COMMAND_TIMEOUT_EXPLICIT" = "true" ] || mi_config_number defaults.command_timeout MI_COMMAND_TIMEOUT
     [ "$MI_APPSTORE_LOGIN_EXPLICIT" = "true" ] || mi_config_enum restore.appstore_login MI_APPSTORE_LOGIN skip prompt pause require
     [ "$MI_REPORT_EXPLICIT" = "true" ] || mi_config_string reports.path MI_REPORT
@@ -140,10 +142,13 @@ sources:
   xcode: true
   dotfiles: true
   manual_apps: true
+  github_projects: false
 
 backup:
   check_manual_brew: true
   manual_brew_match: ask
+  github_projects:
+    roots: []
   dotfiles:
     - ~/.zshrc
     - ~/.zprofile

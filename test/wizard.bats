@@ -52,9 +52,29 @@ setup() {
     mi_wizard_valid_prompt backup manual_brew_match
     mi_wizard_valid_prompt restore use_config
     mi_wizard_valid_prompt restore appstore_login
+    mi_wizard_valid_prompt restore preflight
+    mi_wizard_valid_prompt restore step_mode
     ! mi_wizard_valid_prompt restore manual_brew_match
   '
   [ "$status" -eq 0 ]
+}
+
+@test "wizard direct workflow aliases parse to forced wizard subcommands" {
+  run env PROJECT_ROOT="$PROJECT_ROOT" bash -c '
+    . "$PROJECT_ROOT/lib/common.sh"
+    . "$PROJECT_ROOT/lib/args.sh"
+    mi_args_init
+    mi_parse_args wizard restore
+    printf "%s|%s\n" "$MI_COMMAND" "$MI_SUBCOMMAND"
+    mi_args_init
+    mi_parse_args backup wizard
+    printf "%s|%s\n" "$MI_COMMAND" "$MI_SUBCOMMAND"
+    mi_args_init
+    mi_parse_args restore wizard
+    printf "%s|%s\n" "$MI_COMMAND" "$MI_SUBCOMMAND"
+  '
+  [ "$status" -eq 0 ]
+  [ "$output" = $'wizard|restore\nwizard|backup\nwizard|restore' ]
 }
 
 @test "wizard dry-run defaults are backup no and restore yes" {
@@ -222,6 +242,49 @@ github|GitHub Gist" 2
   [[ "$output" == *"--manual-brew-match ask"* ]]
 }
 
+@test "wizard restore preflight prompt can skip prepare before restore" {
+  run env PROJECT_ROOT="$PROJECT_ROOT" bash -c '
+    . "$PROJECT_ROOT/lib/common.sh"
+    . "$PROJECT_ROOT/lib/args.sh"
+    . "$PROJECT_ROOT/lib/endpoint.sh"
+    . "$PROJECT_ROOT/lib/inventory.sh"
+    . "$PROJECT_ROOT/lib/wizard.sh"
+    mi_args_init
+    mi_wizard_restore_missing_requirements() { printf "%s\n" "yq v4"; }
+    mi_wizard_choice() { printf "%s\n" skip; }
+    mi_wizard_restore_preflight_prompt
+    printf "%s\n" "$MI_SKIP_PREPARE"
+  '
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"true" ]]
+}
+
+@test "wizard restore step mode prompt dispatches pause mode" {
+  run env PROJECT_ROOT="$PROJECT_ROOT" bash -c '
+    . "$PROJECT_ROOT/lib/common.sh"
+    . "$PROJECT_ROOT/lib/args.sh"
+    . "$PROJECT_ROOT/lib/endpoint.sh"
+    . "$PROJECT_ROOT/lib/inventory.sh"
+    . "$PROJECT_ROOT/lib/wizard.sh"
+    mi_args_init
+    MI_SOURCE=local
+    MI_APPS=false
+    MI_BREW=true
+    MI_NPM=false
+    MI_PIP=false
+    MI_PIPX=false
+    MI_OH_MY_ZSH=false
+    MI_XCODE=false
+    MI_DOTFILES=false
+    MI_MANUAL_APPS=false
+    mi_wizard_choice() { printf "%s\n" pause; }
+    mi_wizard_restore_step_mode_prompt
+    mi_wizard_args_for_flow restore | paste -sd " " -
+  '
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"--restore-step-mode pause"* ]]
+}
+
 @test "wizard config can relabel reorder and default known sources" {
   command -v yq >/dev/null 2>&1 || skip "yq is required for wizard config loading"
   cat >custom-wizard.yml <<'YAML'
@@ -301,7 +364,7 @@ YAML
     . "$PROJECT_ROOT/lib/inventory.sh"
     . "$PROJECT_ROOT/lib/wizard.sh"
     printf "version: 1\n" >mac-setup.config.yml
-    printf "%s\n" 2 "" 2 y "1,2" 1 >"$ANSWERS"
+    printf "%s\n" 2 "" 2 y "1,2" 1 1 >"$ANSWERS"
     mi_wizard_interactive() { return 0; }
     mi_wizard_read() {
       local answer
@@ -313,6 +376,7 @@ YAML
     mi_wizard_dispatch() {
       mi_wizard_args_for_flow "$1" | paste -sd " " -
     }
+    mi_wizard_restore_missing_requirements() { return 0; }
     mi_args_init
     MI_WIZARD_CONFIG="$PROJECT_ROOT/mac-setup.wizard.yml"
     mi_wizard_run
