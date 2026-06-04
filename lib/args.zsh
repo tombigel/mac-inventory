@@ -92,6 +92,10 @@ mi_args_init() {
   MI_REPORT=""
   MI_REPORT_FORMAT="text"
   MI_SKIP_REPORT="false"
+  typeset -ga MI_SECTIONS_ITEMS MI_DOTFILES_PATH_ITEMS MI_GITHUB_PROJECTS_ROOT_ITEMS
+  MI_SECTIONS_ITEMS=()
+  MI_DOTFILES_PATH_ITEMS=()
+  MI_GITHUB_PROJECTS_ROOT_ITEMS=()
   MI_SECTIONS=""
   MI_DOTFILES_PATHS=""
   MI_GITHUB_PROJECTS_ROOTS=""
@@ -236,10 +240,14 @@ mi_set_long_option() {
       case "$value" in ask|never|all) MI_MANUAL_BREW_MATCH="$value"; MI_MANUAL_BREW_MATCH_EXPLICIT="true" ;; *) mi_error "--manual-brew-match expects ask, never, or all"; return 2 ;; esac
       ;;
     --versions) mi_set_bool_var MI_RECORD_VERSIONS "$value" || return 2 ;;
-    --dotfiles-path) MI_DOTFILES_PATHS="${MI_DOTFILES_PATHS}${MI_DOTFILES_PATHS:+
-}$value" ;;
-    --github-projects-root) MI_GITHUB_PROJECTS_ROOTS="${MI_GITHUB_PROJECTS_ROOTS}${MI_GITHUB_PROJECTS_ROOTS:+
-}$value" ;;
+    --dotfiles-path)
+      MI_DOTFILES_PATH_ITEMS+=("$value")
+      MI_DOTFILES_PATHS="$(mi_join_lines_from_args "${MI_DOTFILES_PATH_ITEMS[@]}")"
+      ;;
+    --github-projects-root)
+      MI_GITHUB_PROJECTS_ROOT_ITEMS+=("$value")
+      MI_GITHUB_PROJECTS_ROOTS="$(mi_join_lines_from_args "${MI_GITHUB_PROJECTS_ROOT_ITEMS[@]}")"
+      ;;
     --output) MI_OUTPUT="$value"; MI_INVENTORY="$value"; MI_INVENTORY_EXPLICIT="true" ;;
     --skip-existing) mi_set_bool_var MI_SKIP_EXISTING "$value" || return 2 ;;
     --overwrite) mi_set_bool_var MI_OVERWRITE "$value" || return 2 ;;
@@ -252,8 +260,10 @@ mi_set_long_option() {
     --appstore-login)
       case "$value" in skip|prompt|pause|require) MI_APPSTORE_LOGIN="$value"; MI_APPSTORE_LOGIN_EXPLICIT="true" ;; *) mi_error "--appstore-login expects skip, prompt, pause, or require"; return 2 ;; esac
       ;;
-    --section) MI_SECTIONS="${MI_SECTIONS}${MI_SECTIONS:+
-}$value" ;;
+    --section)
+      MI_SECTIONS_ITEMS+=("$value")
+      MI_SECTIONS="$(mi_join_lines_from_args "${MI_SECTIONS_ITEMS[@]}")"
+      ;;
     --format)
       case "$value" in table|yaml|json|md) MI_FORMAT="$value" ;; *) mi_error "--format expects table, yaml, json, or md"; return 2 ;; esac
       ;;

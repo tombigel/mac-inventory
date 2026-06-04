@@ -1,7 +1,9 @@
 #!/usr/bin/env zsh
 
 dotfiles_default_paths() {
-  if [ -n "$MI_DOTFILES_PATHS" ]; then
+  if (( ${+MI_DOTFILES_PATH_ITEMS} && ${#MI_DOTFILES_PATH_ITEMS[@]} > 0 )); then
+    mi_print_lines "${MI_DOTFILES_PATH_ITEMS[@]}"
+  elif [ -n "$MI_DOTFILES_PATHS" ]; then
     printf '%s\n' "$MI_DOTFILES_PATHS"
   else
     printf '%s\n' \

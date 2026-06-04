@@ -1,7 +1,7 @@
 #!/bin/zsh -f
 
 emulate -R zsh
-setopt no_unset no_nomatch sh_word_split
+setopt no_unset no_nomatch
 
 MI_SCRIPT_PATH="${0:A}"
 SCRIPT_DIR="${MI_SCRIPT_PATH:h}"

@@ -16,12 +16,24 @@ mi_source_enabled() {
   esac
 }
 
+mi_selected_sections_lines() {
+  if (( ${+MI_SECTIONS_ITEMS} && ${#MI_SECTIONS_ITEMS[@]} > 0 )); then
+    mi_print_lines "${MI_SECTIONS_ITEMS[@]}"
+  elif [ -n "${MI_SECTIONS:-}" ]; then
+    printf '%s\n' "$MI_SECTIONS"
+  fi
+}
+
+mi_has_selected_sections() {
+  (( ${+MI_SECTIONS_ITEMS} && ${#MI_SECTIONS_ITEMS[@]} > 0 )) || [ -n "${MI_SECTIONS:-}" ]
+}
+
 mi_section_selected() {
   local section="$1"
-  if [ -z "$MI_SECTIONS" ]; then
+  if ! mi_has_selected_sections; then
     return 0
   fi
-  printf '%s\n' "$MI_SECTIONS" | grep -Fxq "$section"
+  mi_selected_sections_lines | grep -Fxq "$section"
 }
 
 mi_progress_bar() {
@@ -416,7 +428,7 @@ mi_inventory_backup_readme_path() {
 
 mi_inventory_write_backup_list() {
   local source_inventory="$1"
-  local backup_list tmp old_inventory old_sections rc
+  local backup_list tmp old_inventory old_sections old_sections_items rc
   backup_list="$(mi_inventory_backup_list_path)" || return 0
   if [ "$MI_DRY_RUN" = "true" ]; then
     mi_info "dry-run: would write backup list to $backup_list"
@@ -433,13 +445,16 @@ mi_inventory_write_backup_list() {
   }
   old_inventory="$MI_INVENTORY"
   old_sections="$MI_SECTIONS"
+  old_sections_items=("${MI_SECTIONS_ITEMS[@]}")
   MI_INVENTORY="$source_inventory"
   MI_SECTIONS=""
+  MI_SECTIONS_ITEMS=()
   mi_verbose "backup-list: rendering $source_inventory to $backup_list via $tmp"
   mi_inventory_list_md >"$tmp"
   rc=$?
   MI_INVENTORY="$old_inventory"
   MI_SECTIONS="$old_sections"
+  MI_SECTIONS_ITEMS=("${old_sections_items[@]}")
   if [ "$rc" -ne 0 ]; then
     rm -f "$tmp"
     mi_warn "backup-list: could not render $backup_list"
@@ -559,13 +574,13 @@ mi_inventory_list() {
   [ -f "$MI_INVENTORY" ] || { mi_error "setup snapshot not found: $MI_INVENTORY"; return 1; }
   case "$MI_FORMAT" in
     yaml)
-      if [ -z "$MI_SECTIONS" ]; then
+      if ! mi_has_selected_sections; then
         cat "$MI_INVENTORY"
       else
         while IFS= read -r section; do
           mi_inventory_copy_section "$MI_INVENTORY" "$section"
         done <<EOF
-$MI_SECTIONS
+$(mi_selected_sections_lines)
 EOF
       fi
       ;;
@@ -577,10 +592,10 @@ EOF
       mi_inventory_list_md
       ;;
     table)
-      if [ -z "$MI_SECTIONS" ]; then
+      if ! mi_has_selected_sections; then
         awk -F: '/^[A-Za-z0-9_]+:/ {print $1}' "$MI_INVENTORY"
       else
-        printf '%s\n' "$MI_SECTIONS"
+        mi_selected_sections_lines
       fi
       ;;
   esac

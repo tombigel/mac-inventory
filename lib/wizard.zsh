@@ -338,7 +338,7 @@ EOF
       selected_indices="$defaults"
     else
       answer="$(printf '%s\n' "$answer" | tr ',' ' ')"
-      for selected in $answer; do
+      for selected in ${(s: :)answer}; do
         if ! mi_wizard_parse_selection_token "$selected" "$count" >/dev/null; then
           mi_warn "invalid source selection: $selected"
           selected_indices=""
@@ -359,7 +359,7 @@ EOF
 $rows
 EOF
 
-  for selected in $selected_indices; do
+  for selected in ${(s: :)selected_indices}; do
     id="$(printf '%s\n' "$rows" | sed -n "${selected}p" | cut -d'|' -f1)"
     var="$(mi_wizard_source_var "$id")" || continue
     printf -v "$var" '%s' "true"
@@ -425,6 +425,7 @@ mi_wizard_github_projects_folder_prompt() {
   while :; do
     answer="$(mi_wizard_read_editable_default "GitHub projects folder absolute path:" "$default")"
     if mi_wizard_validate_absolute_path "$answer"; then
+      MI_GITHUB_PROJECTS_ROOT_ITEMS=("$answer")
       MI_GITHUB_PROJECTS_ROOTS="$answer"
       return 0
     fi
@@ -599,6 +600,7 @@ new|Create timestamped config file"
 }
 
 mi_wizard_args_for_sources() {
+  local root
   printf '%s\n' "--apps=$MI_APPS"
   printf '%s\n' "--brew=$MI_BREW"
   printf '%s\n' "--npm=$MI_NPM"
@@ -609,7 +611,11 @@ mi_wizard_args_for_sources() {
   printf '%s\n' "--dotfiles=$MI_DOTFILES"
   printf '%s\n' "--manual-apps=$MI_MANUAL_APPS"
   printf '%s\n' "--github-projects=$MI_GITHUB_PROJECTS"
-  if [ -n "$MI_GITHUB_PROJECTS_ROOTS" ]; then
+  if (( ${+MI_GITHUB_PROJECTS_ROOT_ITEMS} && ${#MI_GITHUB_PROJECTS_ROOT_ITEMS[@]} > 0 )); then
+    for root in "${MI_GITHUB_PROJECTS_ROOT_ITEMS[@]}"; do
+      [ -n "$root" ] && printf '%s\n' "--github-projects-root" "$root"
+    done
+  elif [ -n "$MI_GITHUB_PROJECTS_ROOTS" ]; then
     while IFS= read -r root; do
       [ -n "$root" ] && printf '%s\n' "--github-projects-root" "$root"
     done <<EOF

@@ -2,11 +2,25 @@
 
 if [ -n "${ZSH_VERSION:-}" ]; then
   emulate -R zsh
-  setopt no_unset no_nomatch sh_word_split
+  setopt no_unset no_nomatch
 fi
 
 MI_VERSION="0.8.0"
 MI_LIVE_LINE_ACTIVE="false"
+
+mi_print_lines() {
+  local item
+  for item in "$@"; do
+    [ -n "$item" ] && printf '%s\n' "$item"
+  done
+}
+
+mi_join_lines_from_args() {
+  local item
+  for item in "$@"; do
+    [ -n "$item" ] && printf '%s\n' "$item"
+  done
+}
 
 mi_color_enabled() {
   [ "${MI_QUIET:-false}" != "true" ] || return 1

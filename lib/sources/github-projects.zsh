@@ -1,7 +1,11 @@
 #!/usr/bin/env zsh
 
 github_projects_roots() {
-  [ -n "${MI_GITHUB_PROJECTS_ROOTS:-}" ] && { printf '%s\n' "$MI_GITHUB_PROJECTS_ROOTS"; return 0; }
+  if (( ${+MI_GITHUB_PROJECTS_ROOT_ITEMS} && ${#MI_GITHUB_PROJECTS_ROOT_ITEMS[@]} > 0 )); then
+    mi_print_lines "${MI_GITHUB_PROJECTS_ROOT_ITEMS[@]}"
+  elif [ -n "${MI_GITHUB_PROJECTS_ROOTS:-}" ]; then
+    printf '%s\n' "$MI_GITHUB_PROJECTS_ROOTS"
+  fi
 }
 
 github_projects_validate_root() {

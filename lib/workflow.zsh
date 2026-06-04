@@ -1,5 +1,7 @@
 #!/usr/bin/env zsh
 
+typeset -ga MI_WORKFLOW_STEP_ITEMS
+MI_WORKFLOW_STEP_ITEMS=()
 MI_WORKFLOW_STEPS=""
 MI_WORKFLOW_TOTAL=0
 MI_WORKFLOW_INDEX=0
@@ -22,34 +24,27 @@ mi_step_line() {
 
 mi_workflow_build_steps() {
   workflow="$1"
-  MI_WORKFLOW_STEPS="check_xcode_cli
-install_homebrew
-install_yq"
+  MI_WORKFLOW_STEP_ITEMS=(check_xcode_cli install_homebrew install_yq)
   if [ "$MI_GITHUB_PROJECTS" = "true" ]; then
-    MI_WORKFLOW_STEPS="${MI_WORKFLOW_STEPS}
-check_git"
+    MI_WORKFLOW_STEP_ITEMS+=(check_git)
   fi
   if [ "$MI_APPS" = "true" ] || [ "$MI_XCODE" = "true" ]; then
-    MI_WORKFLOW_STEPS="${MI_WORKFLOW_STEPS}
-install_mas"
+    MI_WORKFLOW_STEP_ITEMS+=(install_mas)
   fi
   if [ "$MI_PIPX" = "true" ]; then
-    MI_WORKFLOW_STEPS="${MI_WORKFLOW_STEPS}
-install_pipx"
+    MI_WORKFLOW_STEP_ITEMS+=(install_pipx)
   fi
   if [ "$MI_GIST_PULL" = "true" ] || [ "$MI_GIST_PUSH" = "true" ]; then
-    MI_WORKFLOW_STEPS="${MI_WORKFLOW_STEPS}
-check_github_auth"
+    MI_WORKFLOW_STEP_ITEMS+=(check_github_auth)
   fi
   if [ "$MI_APPS" = "true" ] || [ "$MI_XCODE" = "true" ]; then
-    MI_WORKFLOW_STEPS="${MI_WORKFLOW_STEPS}
-check_appstore_login"
+    MI_WORKFLOW_STEP_ITEMS+=(check_appstore_login)
   fi
   if [ "$workflow" = "restore" ]; then
-    MI_WORKFLOW_STEPS="${MI_WORKFLOW_STEPS}
-restore_inventory"
+    MI_WORKFLOW_STEP_ITEMS+=(restore_inventory)
   fi
-  MI_WORKFLOW_TOTAL="$(printf '%s\n' "$MI_WORKFLOW_STEPS" | sed '/^$/d' | wc -l | tr -d ' ')"
+  MI_WORKFLOW_STEPS="$(mi_join_lines_from_args "${MI_WORKFLOW_STEP_ITEMS[@]}")"
+  MI_WORKFLOW_TOTAL="${#MI_WORKFLOW_STEP_ITEMS[@]}"
 }
 
 mi_resume_workflow() {
@@ -62,7 +57,8 @@ mi_resume_load_steps() {
   resume="$(mi_resume_path)"
   [ -f "$resume" ] || return 1
   MI_WORKFLOW_STEPS="$(awk '/^[[:space:]]*- id:/ { gsub(/"/, "", $3); print $3 }' "$resume")"
-  MI_WORKFLOW_TOTAL="$(printf '%s\n' "$MI_WORKFLOW_STEPS" | sed '/^$/d' | wc -l | tr -d ' ')"
+  MI_WORKFLOW_STEP_ITEMS=("${(@f)MI_WORKFLOW_STEPS}")
+  MI_WORKFLOW_TOTAL="${#MI_WORKFLOW_STEP_ITEMS[@]}"
 }
 
 mi_resume_init() {
@@ -77,7 +73,7 @@ mi_resume_init() {
     printf 'inventory: %s\n' "$(mi_yaml_scalar "$MI_INVENTORY")"
     printf 'current_step: ""\n'
     printf 'steps:\n'
-    printf '%s\n' "$MI_WORKFLOW_STEPS" | sed '/^$/d' | while IFS= read -r step; do
+    for step in "${MI_WORKFLOW_STEP_ITEMS[@]}"; do
       mi_step_line "$step" "pending"
     done
   } >"$resume"
@@ -232,7 +228,7 @@ mi_workflow_run() {
   mi_caffeinate_start
   MI_WORKFLOW_INDEX=0
   workflow_rc=0
-  while IFS= read -r step; do
+  for step in "${MI_WORKFLOW_STEP_ITEMS[@]}"; do
     [ -n "$step" ] || continue
     MI_WORKFLOW_INDEX=$((MI_WORKFLOW_INDEX + 1))
     if [ "$mode" = "continue" ]; then
@@ -251,9 +247,7 @@ mi_workflow_run() {
       workflow_rc="$rc"
       break
     fi
-  done <<EOF
-$MI_WORKFLOW_STEPS
-EOF
+  done
   mi_caffeinate_stop
   trap - INT TERM
   if [ "$workflow_rc" -eq 0 ]; then
